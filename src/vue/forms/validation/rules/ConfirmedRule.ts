@@ -1,5 +1,5 @@
 import { BaseRule } from './BaseRule'
-import { BidirectionalRule } from '../types/BidirectionalRule'
+import { type BidirectionalRule } from '../types/BidirectionalRule'
 
 export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> implements BidirectionalRule {
   protected message: string

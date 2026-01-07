@@ -86,6 +86,8 @@ export function installRouteInjection(router: Router) {
       }
 
       console.warn(`[Route Injection] No resolver found for "${propName}"`)
+
+      return undefined
     }
   })
 }

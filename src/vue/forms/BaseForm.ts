@@ -6,7 +6,7 @@ import { NonPersistentDriver } from '../../service/persistenceDrivers/NonPersist
 import { type PersistenceDriver } from '../../service/persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray } from './PropertyAwareArray'
 import { BaseRule } from './validation/rules/BaseRule'
-import { BidirectionalRule } from './validation/types/BidirectionalRule'
+import { type BidirectionalRule } from './validation/types/BidirectionalRule'
 import { ValidationMode } from './validation'
 
 export function propertyAwareToRaw<T>(propertyAwareObject: any): T {
@@ -121,15 +121,15 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   protected ignore: string[] = []
   protected errorMap: { [serverKey: string]: string | string[] } = {}
 
-  protected rules: {
-    [K in keyof FormBody]?: {
-      rules: BaseRule<FormBody>[]
-      options?: {
-        mode?: ValidationMode
-        // Other options could be added here in the future
+  protected rules: Partial<
+    Record<
+      keyof FormBody,
+      {
+        rules: BaseRule<any>[]
+        options?: { mode?: ValidationMode }
       }
-    }
-  } = {}
+    >
+  > = {}
 
   private fieldDependencies: Map<keyof FormBody, Set<keyof FormBody>> = new Map()
 
@@ -444,7 +444,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     this.validate()
   }
 
-  protected defineRules(): { [K in keyof FormBody]?: { rules: BaseRule<FormBody>[]; options?: { mode?: ValidationMode } } } {
+  protected defineRules(): { [K in keyof FormBody]?: { rules: BaseRule<any>[]; options?: { mode?: ValidationMode } } } {
     return {}
   }
 
@@ -486,7 +486,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             // @ts-ignore Dynamic property access, index could be NaN
             this._errors[topKey][index][errorSubKey] = errorMessage
           } else {
-            // @ts-ignore Dynamic property access
             this._errors[targetKey] = errorMessage
           }
         }

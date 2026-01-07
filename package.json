@@ -33,6 +33,7 @@
     "lint": "eslint \"src/**/*.{js,vue,ts}\"",
     "lint:fix": "eslint \"src/**/*.{js,vue,ts}\" --fix",
     "format": "prettier --check src/",
+    "format:fix": "prettier --write src/",
     "type-check": "tsc --noEmit",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

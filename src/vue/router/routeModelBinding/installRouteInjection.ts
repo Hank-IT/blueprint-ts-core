@@ -46,6 +46,12 @@ export function installRouteInjection(router: Router) {
 
         const paramValue = Array.isArray(rawParam) ? rawParam[0] : String(rawParam)
 
+        if (paramValue === undefined || paramValue === null) {
+          console.warn(`[Route Injection] Param value "${cfg.from}" not found for prop "${propName}"`)
+
+          continue
+        }
+
         const resolver = cfg.resolve(paramValue)
 
         let payload = await resolver.resolve()

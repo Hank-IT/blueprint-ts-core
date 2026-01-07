@@ -1,6 +1,6 @@
 {
-  "name": "@hank-it/ui",
-  "version": "3.14.0",
+  "name": "@blueprint-ts/core",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     "./service/pagination": "./src/service/pagination/index.ts",

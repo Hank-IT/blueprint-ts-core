@@ -1,0 +1,8 @@
+name: blueprint-ts-core
+services:
+  vite:
+    image: node:22-alpine
+    working_dir: /home/node/app
+    entrypoint: npm run dev
+    volumes:
+      - "./:/home/node/app"

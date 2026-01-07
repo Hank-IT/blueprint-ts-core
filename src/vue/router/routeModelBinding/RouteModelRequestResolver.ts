@@ -1,4 +1,4 @@
-import { type DataRequest, type Resolver } from '@/services/router/injection/types.ts'
+import { type DataRequest, type Resolver } from './types'
 
 export class RouteModelRequestResolver<T> implements Resolver<T> {
   public constructor(private request: DataRequest<T>) {}

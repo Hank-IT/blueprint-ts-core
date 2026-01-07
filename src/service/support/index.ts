@@ -1,5 +1,3 @@
 import { DeferredPromise } from './DeferredPromise'
 
-export {
-  DeferredPromise
-}
+export { DeferredPromise }

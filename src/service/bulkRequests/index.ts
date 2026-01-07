@@ -3,9 +3,4 @@ import { BulkRequestSender } from './BulkRequestSender'
 import { BulkRequestEventEnum } from './BulkRequestEvent.enum'
 import { BulkRequestExecutionMode } from './BulkRequestSender'
 
-export {
-  BulkRequestEventEnum,
-  BulkRequestWrapper,
-  BulkRequestSender,
-  BulkRequestExecutionMode
-}
+export { BulkRequestEventEnum, BulkRequestWrapper, BulkRequestSender, BulkRequestExecutionMode }

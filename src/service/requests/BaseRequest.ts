@@ -23,8 +23,7 @@ export abstract class BaseRequest<
   ResponseClass extends ResponseContract<ResponseBodyInterface> = BaseResponse<ResponseBodyInterface>,
   RequestBodyInterface = undefined,
   RequestParamsInterface extends object = object
-> implements BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>
-{
+> implements BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface> {
   protected requestId: string = uuidv4()
   protected params: RequestParamsInterface | undefined = undefined
   protected requestBody: RequestBodyInterface | undefined = undefined

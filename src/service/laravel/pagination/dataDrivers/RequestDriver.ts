@@ -14,8 +14,7 @@ type ExtractRequestTypes<T> =
 export class RequestDriver<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TReq extends PaginateableRequestContract<any, any, any, any>
-> implements PaginationDataDriverContract<ExtractRequestTypes<TReq>['Resource']>
-{
+> implements PaginationDataDriverContract<ExtractRequestTypes<TReq>['Resource']> {
   public constructor(protected request: TReq) {}
 
   public get(pageNumber: number, pageSize: number): Promise<PaginationDataDto<ExtractRequestTypes<TReq>['Resource']>> {

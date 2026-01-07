@@ -22,46 +22,46 @@
  * https://gist.github.com/GFoley83/5877f6c09fbcfd62569c51dc91444cf0
  */
 export class DeferredPromise<T> implements Promise<T> {
-  readonly [Symbol.toStringTag]: 'Promise' = 'Promise';
+  readonly [Symbol.toStringTag]: 'Promise' = 'Promise'
 
-  private _promise: Promise<T>;
-  private _resolve!: (value: T | PromiseLike<T>) => void;
-  private _reject!: (reason?: unknown) => void;
-  private _state: 'pending' | 'fulfilled' | 'rejected' = 'pending';
+  private _promise: Promise<T>
+  private _resolve!: (value: T | PromiseLike<T>) => void
+  private _reject!: (reason?: unknown) => void
+  private _state: 'pending' | 'fulfilled' | 'rejected' = 'pending'
 
   public get state(): 'pending' | 'fulfilled' | 'rejected' {
-    return this._state;
+    return this._state
   }
 
   public constructor() {
     this._promise = new Promise<T>((resolve, reject) => {
-      this._resolve = resolve;
-      this._reject = reject;
-    });
+      this._resolve = resolve
+      this._reject = reject
+    })
   }
 
   public then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
-    return this._promise.then(onfulfilled, onrejected);
+    return this._promise.then(onfulfilled, onrejected)
   }
 
   public catch<TResult = never>(onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null): Promise<T | TResult> {
-    return this._promise.catch(onrejected);
+    return this._promise.catch(onrejected)
   }
 
   public finally(onfinally?: (() => void) | null): Promise<T> {
-    return this._promise.finally(onfinally);
+    return this._promise.finally(onfinally)
   }
 
   public resolve(value: T | PromiseLike<T>): void {
-    this._resolve(value);
-    this._state = 'fulfilled';
+    this._resolve(value)
+    this._state = 'fulfilled'
   }
 
   public reject(reason?: unknown): void {
-    this._reject(reason);
-    this._state = 'rejected';
+    this._reject(reason)
+    this._state = 'rejected'
   }
 }

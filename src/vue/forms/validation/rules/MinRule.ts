@@ -1,4 +1,4 @@
-import { BaseRule } from './BaseRule';
+import { BaseRule } from './BaseRule'
 
 export class MinRule<FormBody extends object> extends BaseRule<FormBody> {
   /**
@@ -10,7 +10,7 @@ export class MinRule<FormBody extends object> extends BaseRule<FormBody> {
     protected min: number,
     protected message?: string
   ) {
-    super();
+    super()
   }
 
   /**
@@ -26,26 +26,26 @@ export class MinRule<FormBody extends object> extends BaseRule<FormBody> {
   public validate(value: unknown): boolean {
     // Null or undefined values should be handled by RequiredRule, not this rule
     if (value === null || value === undefined) {
-      return true;
+      return true
     }
 
     // For strings, check the length
     if (typeof value === 'string') {
-      return value.length >= this.min;
+      return value.length >= this.min
     }
 
     // For numbers, check the value
     if (typeof value === 'number') {
-      return value >= this.min;
+      return value >= this.min
     }
 
     // For arrays, check the length
     if (Array.isArray(value)) {
-      return value.length >= this.min;
+      return value.length >= this.min
     }
 
     // For other types, validation fails
-    return false;
+    return false
   }
 
   /**
@@ -53,9 +53,9 @@ export class MinRule<FormBody extends object> extends BaseRule<FormBody> {
    */
   public getMessage(): string {
     if (this.message) {
-      return this.message;
+      return this.message
     }
 
-    return `This field must be at least ${this.min}`;
+    return `This field must be at least ${this.min}`
   }
 }

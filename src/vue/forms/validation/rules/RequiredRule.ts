@@ -14,6 +14,6 @@ export class RequiredRule<FormBody extends object> extends BaseRule<FormBody> {
   }
 
   public getMessage(): string {
-    return this.message;
+    return this.message
   }
 }

@@ -204,17 +204,17 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * Validate fields that depend on the changed field
    */
   private validateDependentFields(changedField: keyof FormBody): void {
-    const dependentFields = this.fieldDependencies.get(changedField);
+    const dependentFields = this.fieldDependencies.get(changedField)
 
     if (dependentFields) {
-      const fieldsToValidate = new Set<keyof FormBody>(dependentFields);
+      const fieldsToValidate = new Set<keyof FormBody>(dependentFields)
 
       // For bidirectional dependencies
       for (const field of dependentFields) {
-        const fieldDeps = this.fieldDependencies.get(field);
+        const fieldDeps = this.fieldDependencies.get(field)
         if (fieldDeps && fieldDeps.has(changedField)) {
-          fieldsToValidate.add(field);
-          fieldsToValidate.add(changedField);
+          fieldsToValidate.add(field)
+          fieldsToValidate.add(changedField)
         }
       }
 
@@ -223,7 +223,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         this.validateField(field, {
           isDependentChange: true,
           isSubmitting: false
-        });
+        })
       }
     }
   }
@@ -271,7 +271,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           } else {
             initDirty[key as keyof FormBody] = false
           }
-          
+
           // Initialize touched state
           initTouched[key as keyof FormBody] = false
         }
@@ -303,7 +303,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         } else {
           initDirty[key as keyof FormBody] = false
         }
-        
+
         // Initialize touched state
         initTouched[key as keyof FormBody] = false
       }
@@ -311,7 +311,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       this.touched = reactive(initTouched) as Record<keyof FormBody, boolean>
     }
 
-    this.rules = this.defineRules();
+    this.rules = this.defineRules()
 
     // Build the field dependencies map before creating computed properties
     this.buildFieldDependencies()
@@ -334,13 +334,13 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             }
             this.dirty[key as keyof FormBody] = (newVal as any[]).map(() => false)
             this.touched[key as keyof FormBody] = true
-            
+
             // Validate this field
             this.validateField(key as keyof FormBody)
-            
+
             // Also validate any fields that depend on this field
             this.validateDependentFields(key as keyof FormBody)
-            
+
             if (persist) {
               driver.set(this.constructor.name, {
                 state: toRaw(this.state),
@@ -358,13 +358,13 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             this.state[key] = value
             this.dirty[key as keyof FormBody] = this.computeDirtyState(value, this.original[key])
             this.touched[key as keyof FormBody] = true
-            
+
             // Validate this field
             this.validateField(key as keyof FormBody)
-            
+
             // Also validate any fields that depend on this field
             this.validateDependentFields(key as keyof FormBody)
-            
+
             if (persist) {
               driver.set(this.constructor.name, {
                 state: toRaw(this.state),
@@ -398,33 +398,33 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       // Check if any field has errors
       for (const field in this._errors) {
         if (Object.prototype.hasOwnProperty.call(this._errors, field)) {
-          const fieldErrors = this._errors[field];
-          
+          const fieldErrors = this._errors[field]
+
           // Handle string array errors
           if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
-            return true;
+            return true
           }
-          
+
           // Handle nested array errors
           if (fieldErrors && typeof fieldErrors === 'object') {
             // For arrays of objects with errors
             if (Array.isArray(fieldErrors)) {
               for (const item of fieldErrors) {
                 if (item && typeof item === 'object' && Object.keys(item).length > 0) {
-                  return true;
+                  return true
                 }
               }
-            } 
+            }
             // For plain objects with errors
             else if (Object.keys(fieldErrors).length > 0) {
-              return true;
+              return true
             }
           }
         }
       }
-      
-      return false;
-    });
+
+      return false
+    })
 
     if (persist) {
       watch(
@@ -442,12 +442,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     this.validate()
-
-
   }
 
   protected defineRules(): { [K in keyof FormBody]?: { rules: BaseRule<FormBody>[]; options?: { mode?: ValidationMode } } } {
-    return {};
+    return {}
   }
 
   public fillErrors<ErrorInterface>(errorsData: ErrorInterface): void {
@@ -503,30 +501,30 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    */
   public touch(field: keyof FormBody): void {
     this.touched[field] = true
-    
+
     // Get field config to check if we should validate on touch
-    const fieldConfig = this.rules[field];
+    const fieldConfig = this.rules[field]
     if (fieldConfig) {
-      const mode = fieldConfig.options?.mode ?? ValidationMode.DEFAULT;
-      
+      const mode = fieldConfig.options?.mode ?? ValidationMode.DEFAULT
+
       // Validate if ON_TOUCH flag is set
       if (mode & ValidationMode.ON_TOUCH) {
         this.validateField(field, {
           isSubmitting: false,
           isDependentChange: false
-        });
+        })
       }
     }
-    
+
     // Persist the touched state if persistence is enabled
     if (this.options?.persist !== false) {
-      const driver = this.getPersistenceDriver(this.options?.persistSuffix);
+      const driver = this.getPersistenceDriver(this.options?.persistSuffix)
       driver.set(this.constructor.name, {
         state: toRaw(this.state),
         original: toRaw(this.original),
         dirty: toRaw(this.dirty),
         touched: toRaw(this.touched)
-      } as PersistedForm<FormBody>);
+      } as PersistedForm<FormBody>)
     }
   }
 
@@ -536,7 +534,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * @returns boolean indicating if the field has been touched
    */
   public isTouched(field: keyof FormBody): boolean {
-    return !!this.touched[field];
+    return !!this.touched[field]
   }
 
   protected validateField(
@@ -556,7 +554,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     // Get field rules and options
     const fieldConfig = this.rules[field]
     if (!fieldConfig?.rules || fieldConfig.rules.length === 0) {
-      return; // No rules to validate
+      return // No rules to validate
     }
 
     // Default to ON_DIRTY | ON_SUBMIT if no mode is specified
@@ -569,15 +567,15 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     // Determine if we should validate based on the context and mode
     const shouldValidate =
       // Force validation on submit if ON_SUBMIT flag is set
-      (context.isSubmitting && (mode & ValidationMode.ON_SUBMIT)) ||
+      (context.isSubmitting && mode & ValidationMode.ON_SUBMIT) ||
       // Validate if field is dirty and ON_DIRTY flag is set
-      (isDirty && (mode & ValidationMode.ON_DIRTY)) ||
+      (isDirty && mode & ValidationMode.ON_DIRTY) ||
       // Validate if field is touched and ON_TOUCH flag is set
-      (isTouched && (mode & ValidationMode.ON_TOUCH)) ||
+      (isTouched && mode & ValidationMode.ON_TOUCH) ||
       // Validate instantly if INSTANTLY flag is set
-      (mode & ValidationMode.INSTANTLY) ||
+      mode & ValidationMode.INSTANTLY ||
       // Validate if a dependent field changed and ON_DEPENDENT_CHANGE flag is set
-      (context.isDependentChange && (mode & ValidationMode.ON_DEPENDENT_CHANGE));
+      (context.isDependentChange && mode & ValidationMode.ON_DEPENDENT_CHANGE)
 
     if (shouldValidate) {
       // Run each validation rule, passing the entire form state
@@ -610,7 +608,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           isSubmitting,
           isDependentChange: false,
           isTouched: this.isTouched(field as keyof FormBody)
-        });
+        })
 
         // If there are errors, the form is invalid
         if (this._errors[field] && this._errors[field].length > 0) {
@@ -619,7 +617,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     }
 
-    return isValid;
+    return isValid
   }
 
   public fillState(data: Partial<FormBody>): void {
@@ -778,7 +776,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       dirty: toRaw(this.dirty),
       touched: toRaw(this.touched)
     } as PersistedForm<FormBody>)
-    
+
     // Revalidate the form after reset
     this.validate()
   }
@@ -812,7 +810,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       dirty: toRaw(this.dirty),
       touched: toRaw(this.touched)
     } as PersistedForm<FormBody>)
-    
+
     // Validate the array field after modification
     this.validateField(property)
     this.validateDependentFields(property)
@@ -830,10 +828,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       // @ts-expect-error
       this.state[arrayIndex] = current.filter(filter)
     }
-    
+
     // Mark the array as touched
     this.touched[arrayIndex as keyof FormBody] = true
-    
+
     // Validate the array field after modification
     this.validateField(arrayIndex as keyof FormBody)
     this.validateDependentFields(arrayIndex as keyof FormBody)
@@ -854,7 +852,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         count++
       })
     }
-    
+
     // Mark the array as touched
     this.touched[arrayIndex as keyof FormBody] = true
   }
@@ -877,7 +875,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
                     const originalElement = (this.original[key] as PropertyAwareArray)[index]
                     ;(this.dirty[key] as any[])[index] = this.computeDirtyState(updatedElement, originalElement)
                     this.touched[key] = true
-                    
+
                     // Validate after changing array items
                     this.validateField(key as keyof FormBody)
                     this.validateDependentFields(key as keyof FormBody)
@@ -902,7 +900,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
                   const originalValue = (this.original[key] as PropertyAwareArray)[index]
                   ;(this.dirty[key] as boolean[])[index] = !isEqual(updatedValue, originalValue)
                   this.touched[key] = true
-                  
+
                   // Validate after changing array items
                   this.validateField(key as keyof FormBody)
                   this.validateDependentFields(key as keyof FormBody)
@@ -945,19 +943,19 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
 
       if (Array.isArray(dirtyState)) {
-        return dirtyState.some(item => {
+        return dirtyState.some((item) => {
           if (typeof item === 'boolean') {
             return item
           }
           if (item && typeof item === 'object') {
-            return Object.values(item).some(v => v === true)
+            return Object.values(item).some((v) => v === true)
           }
           return false
-        });
+        })
       }
 
       if (dirtyState && typeof dirtyState === 'object') {
-        return Object.values(dirtyState).some(v => v === true)
+        return Object.values(dirtyState).some((v) => v === true)
       }
 
       return false
@@ -965,7 +963,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
     // Check all fields (original behavior)
     for (const key in this.dirty) {
-      const dirtyState = this.dirty[key as keyof FormBody];
+      const dirtyState = this.dirty[key as keyof FormBody]
 
       if (typeof dirtyState === 'boolean' && dirtyState) {
         return true
@@ -976,13 +974,13 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           if (typeof item === 'boolean' && item) {
             return true
           }
-          if (item && typeof item === 'object' && Object.values(item).some(v => v === true)) {
+          if (item && typeof item === 'object' && Object.values(item).some((v) => v === true)) {
             return true
           }
         }
       }
 
-      if (dirtyState && typeof dirtyState === 'object' && Object.values(dirtyState).some(v => v === true)) {
+      if (dirtyState && typeof dirtyState === 'object' && Object.values(dirtyState).some((v) => v === true)) {
         return true
       }
     }
@@ -995,62 +993,62 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * @returns boolean indicating if the form has any errors
    */
   public hasErrors(): boolean {
-    return this._hasErrors.value;
+    return this._hasErrors.value
   }
 
   /**
    * Updates both the state and original value for a given property,
    * keeping the field in a clean (not dirty) state.
    * Supports all field types including PropertyAwareArray.
-   * 
+   *
    * @param key The property key to update
    * @param value The new value to set
    */
   public syncValue<K extends keyof FormBody>(key: K, value: FormBody[K]): void {
     const driver = this.getPersistenceDriver(this.options?.persistSuffix)
     const currentVal = this.state[key]
-    
+
     // Handle PropertyAwareArray
     if (currentVal instanceof PropertyAwareArray) {
       const arr = this.state[key] as PropertyAwareArray
       const originalArr = this.original[key] as PropertyAwareArray
-      
+
       // Clear arrays
       arr.length = 0
       originalArr.length = 0
-      
+
       // Fill both arrays with the new value
       if (Array.isArray(value)) {
-        value.forEach(item => {
+        value.forEach((item) => {
           arr.push(cloneDeep(item))
           originalArr.push(cloneDeep(item))
         })
       } else if (value instanceof PropertyAwareArray) {
-        ;[...value].forEach(item => {
+        ;[...value].forEach((item) => {
           arr.push(cloneDeep(item))
           originalArr.push(cloneDeep(item))
         })
       }
-      
+
       // Reset dirty state for this array
       this.dirty[key] = ([...arr] as any[]).map(() => false)
       // Mark as touched
       this.touched[key] = true
-    } 
+    }
     // Handle regular arrays
     else if (Array.isArray(currentVal)) {
       this.state[key] = cloneDeep(value)
       this.original[key] = cloneDeep(value)
       this.dirty[key] = false
       this.touched[key] = true
-    } 
+    }
     // Handle objects
     else if (typeof currentVal === 'object' && currentVal !== null) {
       this.state[key] = cloneDeep(value)
       this.original[key] = cloneDeep(value)
       this.dirty[key] = false
       this.touched[key] = true
-    } 
+    }
     // Handle primitive values
     else {
       this.state[key] = value
@@ -1058,7 +1056,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       this.dirty[key] = false
       this.touched[key] = true
     }
-    
+
     // Update persistence if enabled
     if (this.options?.persist !== false) {
       driver.set(this.constructor.name, {
@@ -1068,7 +1066,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         touched: toRaw(this.touched)
       } as PersistedForm<FormBody>)
     }
-    
+
     // Validate the field and any dependent fields
     this.validateField(key)
     this.validateDependentFields(key)

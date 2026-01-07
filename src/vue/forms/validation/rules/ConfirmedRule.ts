@@ -4,7 +4,10 @@ import { BidirectionalRule } from '../types/BidirectionalRule'
 export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> implements BidirectionalRule {
   protected message: string
 
-  public constructor(protected confirmationField: keyof FormBody, message?: string) {
+  public constructor(
+    protected confirmationField: keyof FormBody,
+    message?: string
+  ) {
     super()
 
     this.message = message || `Must match ${String(confirmationField)}`
@@ -31,6 +34,6 @@ export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> i
 
   // Implement BidirectionalRule interface
   public getBidirectionalFields(): string[] {
-    return [this.confirmationField as string];
+    return [this.confirmationField as string]
   }
 }

@@ -26,7 +26,7 @@ export default function <T>(
 
     const vNode = h(dialog, {
       indeterminate: indeterminate.value,
-      checked: checked.value,
+      checked: checked.value
     })
     vNode.key = Symbol()
     vNode.appContext = self.appContext
@@ -86,7 +86,7 @@ export default function <T>(
 
       // We need preventDefault() here because we're showing a dialog
       // and don't want the checkbox to be checked until the user makes a choice
-      event.preventDefault();
+      event.preventDefault()
 
       const mountedDialog = mountDialog()
       if (!mountedDialog?.exposed) return
@@ -112,7 +112,7 @@ export default function <T>(
 
       // We need preventDefault() here because we're showing a dialog
       // and don't want the checkbox to be checked until the user makes a choice
-      event.preventDefault();
+      event.preventDefault()
 
       const mountedDialog = mountDialog()
       if (!mountedDialog?.exposed) return

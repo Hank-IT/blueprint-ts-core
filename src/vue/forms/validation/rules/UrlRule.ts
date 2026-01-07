@@ -7,18 +7,18 @@ export class UrlRule<FormBody extends object> extends BaseRule<FormBody> {
 
   public validate(value: unknown): boolean {
     if (!value || typeof value !== 'string') {
-      return false;
+      return false
     }
 
     try {
-      new URL(value);
-      return true;
+      new URL(value)
+      return true
     } catch {
-      return false;
+      return false
     }
   }
 
   public getMessage(): string {
-    return this.message;
+    return this.message
   }
 }

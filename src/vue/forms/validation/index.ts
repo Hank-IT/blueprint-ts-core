@@ -1,4 +1,4 @@
-import { BaseRule } from "./rules/BaseRule"
+import { BaseRule } from './rules/BaseRule'
 import { ConfirmedRule } from './rules/ConfirmedRule'
 import { RequiredRule } from './rules/RequiredRule'
 import { UrlRule } from './rules/UrlRule'
@@ -7,16 +7,6 @@ import { ValidationMode } from './ValidationMode.enum'
 
 import { type BidirectionalRule } from './types/BidirectionalRule'
 
-export {
-  BaseRule,
-  ConfirmedRule,
-  RequiredRule,
-  UrlRule,
-  MinRule,
+export { BaseRule, ConfirmedRule, RequiredRule, UrlRule, MinRule, ValidationMode }
 
-  ValidationMode
-}
-
-export type {
-  BidirectionalRule
-}
+export type { BidirectionalRule }

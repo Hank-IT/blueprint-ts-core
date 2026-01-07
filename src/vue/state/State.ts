@@ -1,4 +1,3 @@
-
 import { debounce } from 'lodash-es'
 import { type PersistenceDriver } from '../../service/persistenceDrivers'
 import { NonPersistentDriver } from '../../service/persistenceDrivers'
@@ -13,23 +12,18 @@ export interface StateOptions {
 type ChangeHandler<T> = (val: T, oldVal: T) => void
 
 // Type for accessing nested properties with dot notation
-type PathValue<T, P extends string> =
-  P extends keyof T ? T[P] :
-    P extends `${infer K}.${infer Rest}` ?
-      K extends keyof T ?
-        T[K] extends Record<string, unknown> ?
-          PathValue<T[K], Rest> :
-          never :
-        never :
-      never
+type PathValue<T, P extends string> = P extends keyof T
+  ? T[P]
+  : P extends `${infer K}.${infer Rest}`
+    ? K extends keyof T
+      ? T[K] extends Record<string, unknown>
+        ? PathValue<T[K], Rest>
+        : never
+      : never
+    : never
 
 // Helper type to get all possible paths in an object
-type PathsToStringProps<T> = T extends object ?
-  { [K in keyof T]: K extends string ?
-    K | `${K}.${PathsToStringProps<T[K]>}` :
-    never
-  }[keyof T] :
-  never
+type PathsToStringProps<T> = T extends object ? { [K in keyof T]: K extends string ? K | `${K}.${PathsToStringProps<T[K]>}` : never }[keyof T] : never
 
 // Union type of all possible dot-notation paths in T
 type Path<T> = keyof T | PathsToStringProps<T>
@@ -179,7 +173,7 @@ export abstract class State<T extends object> {
       for (const path of paths) {
         // For arrays, we expect the handler to have the signature (changedPath, state) => void
         const pathHandler = () => {
-          (handler as (changedPath: P, state: T) => void)(path, this.export())
+          ;(handler as (changedPath: P, state: T) => void)(path, this.export())
         }
 
         // Store reset handler if needed
@@ -215,7 +209,7 @@ export abstract class State<T extends object> {
     }
 
     // Return a function that stops all watchers
-    return () => stopFunctions.forEach(stop => stop())
+    return () => stopFunctions.forEach((stop) => stop())
   }
 
   /**
@@ -227,9 +221,7 @@ export abstract class State<T extends object> {
     options?: { debounce?: number; executeOnReset?: boolean }
   ): () => void {
     const pathParts = path.split('.')
-    const debouncedHandler = options?.debounce && options.debounce > 0
-      ? debounce(handler, options.debounce)
-      : undefined
+    const debouncedHandler = options?.debounce && options.debounce > 0 ? debounce(handler, options.debounce) : undefined
 
     const effectiveHandler = debouncedHandler || handler
 
@@ -336,7 +328,7 @@ export abstract class State<T extends object> {
       if (keysA.length !== keysB.length) return false
       if (!keysA.every((k, i) => k === keysB[i])) return false
 
-      return keysA.every(k => this.isEqual(objA[k], objB[k]))
+      return keysA.every((k) => this.isEqual(objA[k], objB[k]))
     }
 
     return false

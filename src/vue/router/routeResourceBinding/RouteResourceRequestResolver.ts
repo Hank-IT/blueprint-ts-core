@@ -1,6 +1,6 @@
 import { type DataRequest, type Resolver } from './types'
 
-export class RouteModelRequestResolver<T> implements Resolver<T> {
+export class RouteResourceRequestResolver<T> implements Resolver<T> {
   public constructor(private request: DataRequest<T>) {}
 
   public async resolve(): Promise<T> {

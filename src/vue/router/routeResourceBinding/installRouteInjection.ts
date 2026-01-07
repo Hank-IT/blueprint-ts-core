@@ -1,4 +1,5 @@
 import { type Router } from 'vue-router'
+import { reactive } from 'vue'
 
 type InjectRuntimeConfig = {
   from: string
@@ -20,7 +21,11 @@ export function installRouteInjection(router: Router) {
   router.beforeResolve(async (to) => {
     console.log('[Route Injection] Resolving route injections...')
 
-    const resolvedProps: Record<string, unknown> = {}
+    if (!to.meta._injectedProps) {
+      to.meta._injectedProps = reactive({})
+    }
+
+    const resolvers: Record<string, () => Promise<unknown>> = {}
 
     // Iterate through all matched route records (from parent to child)
     for (const record of to.matched) {
@@ -52,22 +57,35 @@ export function installRouteInjection(router: Router) {
           continue
         }
 
-        const resolver = cfg.resolve(paramValue)
+        // Define the refresh logic for this specific prop
+        const resolveProp = async () => {
+          const resolver = cfg.resolve(paramValue)
+          let payload = await resolver.resolve()
+          if (typeof cfg.getter === 'function') {
+            payload = cfg.getter(payload)
+          }
 
-        let payload = await resolver.resolve()
-
-        if (typeof cfg.getter === 'function') {
-          payload = cfg.getter(payload)
+          // Updating the reactive object triggers the component re-render
+          ;(to.meta._injectedProps as any)[propName] = payload
+          return payload
         }
 
-        resolvedProps[propName] = payload
+        resolvers[propName] = resolveProp
 
-        console.debug(
-          `[Route Injection] Successfully resolved prop "${propName}" for route "${record.path}": ${JSON.stringify(resolvedProps[propName])}`
-        )
+        await resolveProp()
+
+        console.debug(`[Route Injection] Successfully resolved prop "${propName}" for route "${record.path}"`)
       }
     }
 
-    to.meta._injectedProps = resolvedProps
+    // Attach the resolvers and a global refresh helper to the route meta
+    to.meta['_injectedResolvers'] = resolvers
+    to.meta['refresh'] = async (propName: string) => {
+      if (resolvers[propName]) {
+        return await resolvers[propName]()
+      }
+
+      console.warn(`[Route Injection] No resolver found for "${propName}"`)
+    }
   })
 }

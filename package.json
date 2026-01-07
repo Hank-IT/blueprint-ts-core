@@ -20,7 +20,7 @@
     "./vue/forms": "./src/vue/forms/index.ts",
     "./vue/forms/validation": "./src/vue/forms/validation/index.ts",
     "./vue/requests": "./src/vue/requests/index.ts",
-    "./vue/router/routeModelBinding": "./src/vue/router/routeModelBinding/index.ts",
+    "./vue/router/routeResourceBinding": "./src/vue/router/routeResourceBinding/index.ts",
     "./vue/state": "./src/vue/state/index.ts"
   },
   "scripts": {

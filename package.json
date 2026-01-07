@@ -1,6 +1,10 @@
 {
   "name": "@blueprint-ts/core",
   "version": "1.0.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     "./service/pagination": "./src/service/pagination/index.ts",

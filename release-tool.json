@@ -1,0 +1,7 @@
+{
+  "version_file": "package.json",
+  "version_pattern": "\"version\":\\s*\"([0-9]+\\.[0-9]+\\.[0-9]+)\"",
+  "version_template": "\"version\": \"{}\"",
+  "develop_branch": "develop",
+  "main_branch": "main"
+}

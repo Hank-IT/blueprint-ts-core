@@ -262,7 +262,7 @@ export abstract class State<T extends object> {
 
         for (let i = 1; i < pathParts.length; i++) {
           if (!obj || typeof obj !== 'object') return undefined
-          // @ts-expect-error: obj is guaranteed to be an object at this point
+          // @ts-ignore: obj is guaranteed to be an object at this point
           obj = (obj as any)[pathParts[i]]
         }
 

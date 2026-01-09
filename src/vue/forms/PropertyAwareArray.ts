@@ -1,10 +1,10 @@
+import { type WritableComputedRef } from 'vue'
+
 /**
  * Repräsentiert eine reaktive Property mit model.value Zugriff
  */
 export interface PropertyAwareField<T> {
-  model: {
-    value: T
-  }
+  model: WritableComputedRef<T>
   errors: any[]
   suggestions: any[]
   dirty: boolean
@@ -15,7 +15,7 @@ export interface PropertyAwareField<T> {
  * Jedes Feld vom Typ T wird zu einem PropertyAwareField<T>
  */
 export type PropertyAware<T> = {
-  [K in keyof T]: T[K] extends Array<infer U> ? Array<PropertyAware<U>> : PropertyAwareField<T[K]>
+  [K in keyof T]: PropertyAwareField<T[K]>
 }
 /**
  * Extends Array with property awareness.

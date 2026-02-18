@@ -1,3 +1,4 @@
+import { type Component } from 'vue'
 import { type RouteLocationNormalized } from 'vue-router'
 
 /**
@@ -42,7 +43,11 @@ declare module 'vue-router' {
   interface RouteMeta {
     _injectedProps?: Record<string, any>
     _injectedResolvers?: Record<string, () => Promise<any>>
-    refresh?: (propName: string) => Promise<any>
+    _injectionState?: Record<string, { loading: boolean; error: Error | null }>
+    _errorComponent?: Component
+    _loadingComponent?: Component
+    _lazy?: boolean
+    refresh?: (propName: string, options?: { silent?: boolean }) => Promise<any>
     inject?: Record<string, unknown>
   }
 }

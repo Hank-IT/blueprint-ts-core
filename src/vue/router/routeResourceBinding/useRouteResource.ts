@@ -1,14 +1,24 @@
+import { computed, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
 
-export function useRouteResource() {
+type InjectionState = Record<string, { loading: boolean; error: Error | null }>
+
+export function useRouteResource(propName: string) {
   const route = useRoute()
 
-  const refresh = async (propName: string) => {
-    return await route.meta.refresh?.(propName)
+  const refresh = async (options?: { silent?: boolean }) => {
+    return await route.meta.refresh?.(propName, options)
   }
 
-  // If emit is passed, we can wrap it or just provide a helper
-  // to be used like: onRefresh('product', () => ...)
-  // but the most direct way for you is:
-  return { refresh }
+  const isLoading: ComputedRef<boolean> = computed(() => {
+    const state = route.meta._injectionState as InjectionState | undefined
+    return state?.[propName]?.loading ?? false
+  })
+
+  const error: ComputedRef<Error | null> = computed(() => {
+    const state = route.meta._injectionState as InjectionState | undefined
+    return state?.[propName]?.error ?? null
+  })
+
+  return { refresh, isLoading, error }
 }

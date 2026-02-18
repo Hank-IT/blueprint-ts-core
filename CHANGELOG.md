@@ -1,3 +1,11 @@
+## v2.0.0 - 2026-02-18
+
+# [2.0.0](/compare/v1.2.0...v2.0.0) (2026-02-18)
+
+
+### Features
+
+* Cache resolved route resources for child routes db70b77
 ## v1.2.0 - 2026-01-25
 
 # [1.2.0](/compare/v1.1.2...v1.2.0) (2026-01-25)

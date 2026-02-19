@@ -3,5 +3,24 @@
   "version_pattern": "\"version\":\\s*\"([0-9]+\\.[0-9]+\\.[0-9]+)\"",
   "version_template": "\"version\": \"{}\"",
   "develop_branch": "develop",
-  "main_branch": "main"
+  "main_branch": "main",
+  "docs": {
+    "build": {
+      "cwd": "./docs",
+      "commands": [
+        ["npm", "ci"],
+        ["npm", "run", "docs:build"]
+      ],
+      "output_dir": ".vitepress/dist"
+    },
+    "publish": {
+      "repo_path": "./docs",
+      "remote": "origin",
+      "branch": "gh-pages",
+      "subdir": "",
+      "commit_message": "docs: publish {tag}",
+      "add_nojekyll": true,
+      "force_push": false
+    }
+  }
 }

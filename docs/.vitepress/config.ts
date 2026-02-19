@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: '@hank-it/ui',
-  description: 'Documentation for the @hank-it/ui library',
+  title: '@blueprint-ts/core',
+  description: 'Documentation for the @blueprint-ts/core library',
 
-  base: process.env['DOCS_BASE'] || '/ui/latest/',
+  base: process.env['DOCS_BASE'] || '/blueprint-ts-core/',
 
   themeConfig: {
     sidebar: [
@@ -59,7 +59,7 @@ export default defineConfig({
     ],
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'GitHub', link: 'https://github.com/Hank-IT/ui' }
+      { text: 'GitHub', link: 'https://github.com/Hank-IT/blueprint-ts-core' }
     ]
   }
 })

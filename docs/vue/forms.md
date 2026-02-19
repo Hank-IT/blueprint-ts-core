@@ -7,7 +7,7 @@ applications. It provides a comprehensive solution for managing form data with f
 
 - Type-safe form state management
 - Dirty + touched state tracking for fields
-- Error handling, suggestions, and field validation
+- Error handling and field validation
 - Form persistence between page reloads
 - Support for complex nested objects and arrays
 - Automatic transformation of form values to API payloads
@@ -130,7 +130,6 @@ The `properties` getter provides access to each form field with its model, error
 `properties.<field>` exposes:
 - `model` (a `ComputedRef` compatible with `v-model`)
 - `errors` (array; empty until validated/filled)
-- `suggestions` (array/object list; populated via `fillSuggestions`)
 - `dirty` and `touched`
 
 ### Form Submission
@@ -334,14 +333,7 @@ Update both the current and original state, keeping the field "clean":
 form.syncValue('email', 'new@example.com')
 ````
 
-### 5. Suggestions
-Provide per-field suggestions (exposed on `properties.<field>.suggestions`):
-
-````typescript
-form.fillSuggestions({ email: ['a@example.com', 'b@example.com'] })
-````
-
-### 6. Converting `properties` Back To Data
+### 5. Converting `properties` Back To Data
 If you ever need a plain object from the `properties` tree (e.g. for debugging or integrating with non-`BaseForm` code),
 use `propertyAwareToRaw`:
 
@@ -351,7 +343,7 @@ import { propertyAwareToRaw } from '@hank-it/ui/vue/forms'
 const raw = propertyAwareToRaw<MyFormState>(form.properties)
 ````
 
-### 7. Checking For Errors
+### 6. Checking For Errors
 
 ````typescript
 form.hasErrors()

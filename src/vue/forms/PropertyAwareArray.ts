@@ -6,7 +6,6 @@ import { type WritableComputedRef } from 'vue'
 export interface PropertyAwareField<T> {
   model: WritableComputedRef<T>
   errors: any[]
-  suggestions: any[]
   dirty: boolean
 }
 
@@ -21,7 +20,7 @@ export type PropertyAware<T> = {
  * Extends Array with property awareness.
  * When a form field is defined as an instance of PropertyAwareArray,
  * the BaseForm will transform each element into reactive properties with
- * computed getters/setters, error/suggestion tracking, and dirty flags.
+ * computed getters/setters, error tracking, and dirty flags.
  */
 export class PropertyAwareArray<T = any> extends Array<T> {
   /**

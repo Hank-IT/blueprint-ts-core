@@ -115,7 +115,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   private readonly original: FormBody
   private readonly _model: { [K in keyof FormBody]: ComputedRef<FormBody[K]> }
   private _errors: any = reactive({})
-  private _suggestions: any = reactive({})
   private _hasErrors: ComputedRef<boolean>
   protected append: string[] = []
   protected ignore: string[] = []
@@ -673,14 +672,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  public fillSuggestions(suggestionsData: Partial<Record<keyof FormBody, string[] | object[]>>): void {
-    for (const key in suggestionsData) {
-      if (Object.prototype.hasOwnProperty.call(suggestionsData, key)) {
-        this._suggestions[key] = suggestionsData[key]
-      }
-    }
-  }
-
   private transformValue(value: any, parentKey?: string): any {
     if (value instanceof PropertyAwareArray) {
       return [...value].map((item) => this.transformValue(item, parentKey))
@@ -765,9 +756,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
     for (const key in this._errors) {
       delete this._errors[key]
-    }
-    for (const key in this._suggestions) {
-      delete this._suggestions[key]
     }
     driver.set(this.constructor.name, {
       state: toRaw(this.state),
@@ -881,7 +869,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
                   }
                 }),
                 errors: (this._errors[key] && this._errors[key][index] && this._errors[key][index][innerKey]) || [],
-                suggestions: (this._suggestions[key] && this._suggestions[key][index] && this._suggestions[key][index][innerKey]) || [],
                 dirty:
                   Array.isArray(this.dirty[key]) && this.dirty[key][index] && typeof (this.dirty[key] as any[])[index] === 'object'
                     ? (this.dirty[key] as any[])[index][innerKey]
@@ -904,9 +891,8 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
                   this.validateField(key as keyof FormBody)
                   this.validateDependentFields(key as keyof FormBody)
                 }
-              }),
+                }),
               errors: (this._errors[key] && this._errors[key][index]) || [],
-              suggestions: (this._suggestions[key] && this._suggestions[key][index]) || [],
               dirty: Array.isArray(this.dirty[key]) ? (this.dirty[key] as boolean[])[index] : false,
               touched: this.touched[key] || false
             }
@@ -917,7 +903,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         props[key] = {
           model: this._model[key],
           errors: this._errors[key] || [],
-          suggestions: this._suggestions[key] || [],
           dirty: this.dirty[key] || false,
           touched: this.touched[key] || false
         }

@@ -6,8 +6,8 @@
 applications. It provides a comprehensive solution for managing form data with features like:
 
 - Type-safe form state management
-- Dirty state tracking for individual fields
-- Error handling and field validation
+- Dirty + touched state tracking for fields
+- Error handling, suggestions, and field validation
 - Form persistence between page reloads
 - Support for complex nested objects and arrays
 - Automatic transformation of form values to API payloads
@@ -33,11 +33,16 @@ Forms can automatically save their state to browser storage (session, local, etc
 return without losing their input.
 
 ````typescript
-protected override getPersistenceDriver(): PersistenceDriver
-{
-    return new SessionStorageDriver() // Or LocalStorageDriver, etc.
+protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
+  return new SessionStorageDriver(suffix) // Or LocalStorageDriver(suffix), etc.
 }
 ````
+
+Notes:
+- Persistence is enabled by default. Disable it via `super(defaults, { persist: false })`.
+- `persistSuffix` is passed into `getPersistenceDriver(suffix)` and is typically used to namespace the storage key.
+- Persisted state is only reused if the stored `original` matches your current `defaults`; otherwise it is discarded.
+- `persist: false` disables the automatic rehydration + background persistence, but some explicit mutation helpers (e.g. `fillState()`, `reset()`, `addToArrayProperty()`) still call the driver.
 
 ### 3. Transformations and Getters
 
@@ -59,6 +64,16 @@ protected override errorMap: { [serverKey: string]: string | string[] } = {
     ended_at: ['end_date', 'end_time']
 }
 ````
+
+Validation is configured by overriding `defineRules()` and returning per-field rules and an optional validation mode:
+
+- `ValidationMode.DEFAULT` (default): validates on dirty, touch, and submit
+- `ValidationMode.PASSIVE`: only validates on submit
+- `ValidationMode.AGGRESSIVE`: validates immediately and on all triggers
+- `ValidationMode.ON_DEPENDENT_CHANGE`: revalidates when a dependency changes (see below)
+
+Rules can declare dependencies via `rule.dependsOn = ['otherField']`. Some rules (e.g. `ConfirmedRule`) implement
+bidirectional dependencies, so changing either field revalidates the other.
 
 ### 5. Array Management
 
@@ -85,6 +100,18 @@ fields that have been changed.
 ````typescript
 // Check if any field in the form has been modified
 form.isDirty()
+
+// Check if a specific field has been modified
+form.isDirty('email')
+````
+
+### Touched Tracking
+
+Touched indicates user interaction (or programmatic updates via setters/fill methods).
+
+````typescript
+form.touch('email')
+form.isTouched('email')
 ````
 
 ### The Properties Object
@@ -100,6 +127,12 @@ The `properties` getter provides access to each form field with its model, error
 </template>
 ````
 
+`properties.<field>` exposes:
+- `model` (a `ComputedRef` compatible with `v-model`)
+- `errors` (array; empty until validated/filled)
+- `suggestions` (array/object list; populated via `fillSuggestions`)
+- `dirty` and `touched`
+
 ### Form Submission
 
 Build a payload for API submission with:
@@ -108,12 +141,21 @@ Build a payload for API submission with:
 const payload = form.buildPayload()
 ````
 
+For validation on submit, call:
+
+````typescript
+const ok = form.validate(true)
+if (!ok) return
+await api.submitForm(form.buildPayload())
+````
+
 ## How to Use
 
 ### 1. Create a Form Class
 
 ````typescript
 import { BaseForm, type PersistenceDriver, SessionStorageDriver } from '@hank-it/ui/vue/forms'
+import { RequiredRule, ValidationMode } from '@hank-it/ui/vue/forms/validation'
 
 interface MyFormState {
     name: string
@@ -144,8 +186,18 @@ class MyForm extends BaseForm<MyRequestPayload, MyFormState> {
     }
 
     // Use session storage for persistence
-    protected override getPersistenceDriver(): PersistenceDriver {
-        return new SessionStorageDriver()
+    protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
+        return new SessionStorageDriver(suffix)
+    }
+
+    protected override defineRules() {
+      return {
+        name: { rules: [new RequiredRule<MyFormState>('Name is required')] },
+        email: {
+          rules: [new RequiredRule<MyFormState>('Email is required')],
+          options: { mode: ValidationMode.DEFAULT }
+        }
+      }
     }
 
     // Generate a timestamp for the request
@@ -184,12 +236,10 @@ class MyForm extends BaseForm<MyRequestPayload, MyFormState> {
 <script setup>
 import { MyForm } from './MyForm'
 
-const form = new MyForm({
-  name: '',
-  email: ''
-})
+const form = new MyForm()
 
 async function submitForm() {
+  if (!form.validate(true)) return
   try {
     const payload = form.buildPayload()
     await api.submitForm(payload)
@@ -234,19 +284,8 @@ export class MyComplexForm extends BaseForm<RequestType, FormWithPositions> {
   
   // Remove a position by id
   public removePosition(id: number): void {
-    this.state.positions = new PropertyAwareArray(
-      this.state.positions.filter(position => position.id !== id)
-    )
-    this.resetPositionIds()
-  }
-  
-  // Reset the sequential IDs after removing items
-  protected resetPositionIds(): void {
-    let count = 1
-    this.state.positions.forEach(position => {
-      position.id = count
-      count++
-    })
+    this.removeArrayItem('positions', (position) => position.id !== id)
+    this.resetArrayCounter('positions', 'id')
   }
 }
 
@@ -273,10 +312,13 @@ try {
 }
 ````
 
-The `fileErrors` method currently only supports the Laravel style dot notation errors.
+`fillErrors` supports:
+- direct field keys (e.g. `email`)
+- array dot notation where the 2nd segment is a numeric index (e.g. `positions.0.value`)
+- remapping via `errorMap` (including mapping one server key to multiple fields)
 
 ### 3. Filling Form State
-Update multiple form fields at once, preserving the dirty state:
+Update multiple form fields at once and recompute dirty/touched accordingly:
 
 ````typescript
 form.fillState({
@@ -290,6 +332,29 @@ Update both the current and original state, keeping the field "clean":
 
 ````typescript
 form.syncValue('email', 'new@example.com')
+````
+
+### 5. Suggestions
+Provide per-field suggestions (exposed on `properties.<field>.suggestions`):
+
+````typescript
+form.fillSuggestions({ email: ['a@example.com', 'b@example.com'] })
+````
+
+### 6. Converting `properties` Back To Data
+If you ever need a plain object from the `properties` tree (e.g. for debugging or integrating with non-`BaseForm` code),
+use `propertyAwareToRaw`:
+
+````typescript
+import { propertyAwareToRaw } from '@hank-it/ui/vue/forms'
+
+const raw = propertyAwareToRaw<MyFormState>(form.properties)
+````
+
+### 7. Checking For Errors
+
+````typescript
+form.hasErrors()
 ````
 
 ## Real-World Examples
@@ -311,6 +376,13 @@ export class TimeTrackingEntryCreateUpdateForm extends BaseForm<RequestPayload, 
 ````
 
 ### 2. Complex Object Handling
+
+If your form state contains nested objects, `buildPayload()` can transform individual nested properties via
+composite getter names of the form `get<ParentField><NestedProp>()`, where:
+- `ParentField` is based on the form field key (first character uppercased, not camel-cased)
+- `NestedProp` is `upperFirst(camelCase(prop))`
+
+Example (field key `businessAssociate`, prop `id`): `getBusinessAssociateId(...)`.
 
 ````typescript
 export class IncomingVoucherCreateUpdateForm extends BaseForm<RequestPayload, FormState> {

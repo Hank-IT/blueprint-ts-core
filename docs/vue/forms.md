@@ -46,11 +46,62 @@ Notes:
 
 ### 3. Transformations and Getters
 
-Transform form values before they are sent to the server using getter methods:
+`buildPayload()` supports three “getter” patterns to transform values before sending them to your API.
+
+#### A) Field Getter (common)
+If your form `state` contains a field, you can define a getter for that same field name. During `buildPayload()`,
+`BaseForm` will call it with the field’s current value and use the return value in the payload.
+
+Getter name format: `get${upperFirst(camelCase(fieldName))}(value)`
+
+Examples:
 
 ````typescript
+// state.name -> payload.name (trimmed)
+protected getName(value: string): string {
+  return value.trim()
+}
+````
+
+This works for arrays too (plain arrays and `PropertyAwareArray`):
+
+````typescript
+// state.positions -> payload.positions (mapped)
+protected getPositions(positions: PositionItem[]): Array<{ id: number }> {
+  return positions.map((p) => ({ id: p.id }))
+}
+````
+
+#### B) Composite Getter for Nested Props (automatic fallback)
+If you do *not* provide a field getter for a given top-level field, `BaseForm` will recursively walk objects/arrays and
+allow transforming nested properties via composite getter names.
+
+Composite getter format: `get${upperFirst(parentFieldKey)}${upperFirst(camelCase(propName))}(value)`
+
+Example (field key `businessAssociate`, prop `id`):
+
+````typescript
+// state.businessAssociate.id -> payload.businessAssociate.id (replaced with the resource id)
+protected getBusinessAssociateId(value: BusinessAssociateResource | null): string | null {
+  return value?.id ?? null
+}
+````
+
+Notes:
+- This applies to arrays of objects too, because arrays are mapped recursively.
+- The “parent field” part uses the original field key with only the first character uppercased (not camel-cased).
+
+#### C) Appended / Computed Payload Fields (advanced)
+If you need payload fields that do not exist in `state`, add their names to `append`. `buildPayload()` will then call a
+zero-argument getter for each appended field.
+
+Example (append key `started_at` → getter `getStartedAt()`):
+
+````typescript
+protected override append: string[] = ['started_at']
+
 protected getStartedAt(): string {
-    return DateTime.fromFormat(`${this.state.start_date} ${this.state.start_time}`, 'dd.MM.yyyy HH:mm').toISO()
+  return DateTime.fromFormat(`${this.state.start_date} ${this.state.start_time}`, 'dd.MM.yyyy HH:mm').toISO()
 }
 ````
 
@@ -351,6 +402,9 @@ form.hasErrors()
 
 ## Real-World Examples
 ### 1. Date/Time Handling
+
+This example shows the “appended/computed fields” pattern: `started_at` and `ended_at` are not part of the form state,
+so they are listed in `append`, and `buildPayload()` calls `getStartedAt()` / `getEndedAt()` (no arguments).
 
 ````typescript
 export class TimeTrackingEntryCreateUpdateForm extends BaseForm<RequestPayload, FormState> {

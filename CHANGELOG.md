@@ -1,3 +1,13 @@
+## v3.0.0 - 2026-02-19
+
+# [3.0.0](/compare/v2.0.0...v3.0.0) (2026-02-19)
+
+
+### Features
+
+* Omit BaseForm fields when transformer returns undefined 26c0d0e
+* Removed suggestions feature from BaseForm.ts f21d6ce
+* Support file uploads in BaseForm and improve form data handling in requests d765cae
 ## v2.0.0 - 2026-02-18
 
 # [2.0.0](/compare/v1.2.0...v2.0.0) (2026-02-18)

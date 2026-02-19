@@ -1,0 +1,1 @@
+import{_ as i,c as e,o as a,ae as t}from"./chunks/framework.-A2PGuvX.js";const c=JSON.parse('{"title":"Getting Started","description":"","frontmatter":{},"headers":[],"relativePath":"index.md","filePath":"index.md"}'),n={name:"index.md"};function h(l,s,p,r,d,k){return a(),e("div",null,[...s[0]||(s[0]=[t("",21)])])}const g=i(n,[["render",h]]);export{c as __pageData,g as default};

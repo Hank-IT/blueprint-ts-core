@@ -54,6 +54,10 @@ If your form `state` contains a field, you can define a getter for that same fie
 
 Getter name format: `get${upperFirst(camelCase(fieldName))}(value)`
 
+Omitting fields:
+- If a field getter returns `undefined`, the field is **not added** to the payload object.
+- Other values (`null`, `false`, `0`, `''`, empty arrays/objects) are included as-is.
+
 Examples:
 
 ````typescript
@@ -90,6 +94,7 @@ protected getBusinessAssociateId(value: BusinessAssociateResource | null): strin
 Notes:
 - This applies to arrays of objects too, because arrays are mapped recursively.
 - The “parent field” part uses the original field key with only the first character uppercased (not camel-cased).
+- Returning `undefined` from a composite getter omits that nested property from the payload object.
 
 #### C) Appended / Computed Payload Fields (advanced)
 If you need payload fields that do not exist in `state`, add their names to `append`. `buildPayload()` will then call a

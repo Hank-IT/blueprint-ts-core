@@ -685,12 +685,18 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         if (parentKey) {
           const compositeMethod = 'get' + upperFirst(parentKey) + upperFirst(camelCase(prop))
           if (typeof (this as any)[compositeMethod] === 'function') {
-            result[prop] = (this as any)[compositeMethod](value[prop])
+            const transformed = (this as any)[compositeMethod](value[prop])
+            if (transformed !== undefined) {
+              result[prop] = transformed
+            }
             continue
           }
         }
         // Pass the parentKey along so that nested objects still use it.
-        result[prop] = this.transformValue(value[prop], parentKey)
+        const transformed = this.transformValue(value[prop], parentKey)
+        if (transformed !== undefined) {
+          result[prop] = transformed
+        }
       }
       return result
     }
@@ -709,9 +715,15 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       const getterName = 'get' + upperFirst(camelCase(key))
       const typedKey = key as unknown as keyof RequestBody
       if (typeof (this as any)[getterName] === 'function') {
-        payload[typedKey] = (this as any)[getterName](value)
+        const transformed = (this as any)[getterName](value)
+        if (transformed !== undefined) {
+          payload[typedKey] = transformed
+        }
       } else {
-        payload[typedKey] = this.transformValue(value, key)
+        const transformed = this.transformValue(value, key)
+        if (transformed !== undefined) {
+          payload[typedKey] = transformed
+        }
       }
     }
 
@@ -723,7 +735,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
       const getterName = 'get' + upperFirst(camelCase(fieldName))
       if (typeof (this as any)[getterName] === 'function') {
-        payload[fieldName as keyof RequestBody] = (this as any)[getterName]()
+        const transformed = (this as any)[getterName]()
+        if (transformed !== undefined) {
+          payload[fieldName as keyof RequestBody] = transformed
+        }
       } else {
         console.warn(`Getter method '${getterName}' not found for appended field '${fieldName}' in ${this.constructor.name}.`)
       }

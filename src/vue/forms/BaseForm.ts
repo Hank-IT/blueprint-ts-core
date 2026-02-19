@@ -673,6 +673,12 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   private transformValue(value: any, parentKey?: string): any {
+    if (value instanceof Date) {
+      return value
+    }
+    if (typeof Blob !== 'undefined' && value instanceof Blob) {
+      return value
+    }
     if (value instanceof PropertyAwareArray) {
       return [...value].map((item) => this.transformValue(item, parentKey))
     }
@@ -906,7 +912,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
                   this.validateField(key as keyof FormBody)
                   this.validateDependentFields(key as keyof FormBody)
                 }
-                }),
+              }),
               errors: (this._errors[key] && this._errors[key][index]) || [],
               dirty: Array.isArray(this.dirty[key]) ? (this.dirty[key] as boolean[])[index] : false,
               touched: this.touched[key] || false

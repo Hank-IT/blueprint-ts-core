@@ -8,6 +8,7 @@ interface TestFormState {
   email: string | null
   meta: { id: string; secret: string }
   positions: PositionsItem[]
+  file: File | null
 }
 
 type TestRequestPayload = {
@@ -15,6 +16,7 @@ type TestRequestPayload = {
   email: string | null
   meta: { id: string }
   positions: Array<{ id: number }>
+  file?: File
   started_at?: string
 }
 
@@ -30,6 +32,7 @@ class TestForm extends BaseForm<TestRequestPayload, TestFormState> {
         { id: 1, internal: 'x' },
         { id: 2, internal: 'y' },
       ],
+      file: null,
       ...overrides,
     }, { persist: false })
   }
@@ -94,5 +97,13 @@ describe('BaseForm transformers / getters', () => {
     const payload = form.buildPayload()
 
     expect(Object.prototype.hasOwnProperty.call(payload, 'started_at')).toBe(false)
+  })
+
+  it('keeps File values intact (does not transform into a plain object)', () => {
+    const file = new File(['abc'], 'credentials.kdbx', { type: 'application/octet-stream' })
+    const form = new TestForm({ name: 'Alice', file })
+    const payload = form.buildPayload()
+
+    expect(payload.file).toBe(file)
   })
 })

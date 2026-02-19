@@ -11,6 +11,7 @@ applications. It provides a comprehensive solution for managing form data with f
 - Form persistence between page reloads
 - Support for complex nested objects and arrays
 - Automatic transformation of form values to API payloads
+- Supports `File`/`Blob` fields for multipart requests (see “Files / Uploads”)
 
 ## Key Features
 
@@ -43,10 +44,15 @@ Notes:
 - `persistSuffix` is passed into `getPersistenceDriver(suffix)` and is typically used to namespace the storage key.
 - Persisted state is only reused if the stored `original` matches your current `defaults`; otherwise it is discarded.
 - `persist: false` disables the automatic rehydration + background persistence, but some explicit mutation helpers (e.g. `fillState()`, `reset()`, `addToArrayProperty()`) still call the driver.
+- `File`/`Blob` values are not JSON-serializable, so persistence is not supported for file inputs. Use `{ persist: false }` for file upload forms.
 
 ### 3. Transformations and Getters
 
 `buildPayload()` supports three “getter” patterns to transform values before sending them to your API.
+
+Special value types:
+- `Date` values are treated as scalars and preserved (not “object-walked”). When sent as JSON they serialize to ISO strings via `JSON.stringify()`, and when sent as multipart `FormData` they are appended as `toISOString()`.
+- `File`/`Blob` values are also treated as scalars and preserved for multipart uploads.
 
 #### A) Field Getter (common)
 If your form `state` contains a field, you can define a getter for that same field name. During `buildPayload()`,
@@ -404,6 +410,28 @@ const raw = propertyAwareToRaw<MyFormState>(form.properties)
 ````typescript
 form.hasErrors()
 ````
+
+## Files / Uploads (Multipart)
+If your form includes a file, keep it in state as `File | null` and disable persistence:
+
+````typescript
+interface UploadFormBody {
+  name: string
+  file: File | null
+}
+
+class UploadForm extends BaseForm<RequestBody, UploadFormBody> {
+  constructor() {
+    super({ name: '', file: null }, { persist: false })
+  }
+}
+````
+
+`buildPayload()` keeps `File`/`Blob` values intact, so you can send the payload using a multipart `FormData` request body
+(e.g. the request layer’s `FormDataFactory` / `FormDataBody`).
+
+If `file` is `null`, `FormDataBody` encodes it as an empty string (the key stays present). Many backends (e.g. Laravel with
+`ConvertEmptyStringsToNull`) will treat that as `null` again.
 
 ## Real-World Examples
 ### 1. Date/Time Handling

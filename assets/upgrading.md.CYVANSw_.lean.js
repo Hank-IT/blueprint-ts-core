@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as a}from"./chunks/framework.-A2PGuvX.js";const g=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"upgrading.md","filePath":"upgrading.md"}'),r={name:"upgrading.md"};function n(o,s,c,p,d,i){return a(),t("div")}const m=e(r,[["render",n]]);export{g as __pageData,m as default};

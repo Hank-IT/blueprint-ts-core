@@ -26,20 +26,22 @@ export default defineRoute<{
     path: ':productId',
     name: 'products.show',
     component: ProductDetailPage,
-    inject: {
-        product: {
-            from: 'productId',
-            resolve: (productId: string) => {
-                return new RouteResourceRequestResolver(
-                    new ProductShowRequest(productId)
-                )
+    meta: {
+        inject: {
+            product: {
+                from: 'productId',
+                resolve: (productId: string) => {
+                    return new RouteResourceRequestResolver(
+                            new ProductShowRequest(productId)
+                    )
+                }
             }
         }
     }
 })
 ```
 
-Navigation is **non-blocking** — the route navigates immediately while resources resolve in the background. Cached values are reused when navigating between child routes with unchanged parameters.
+Navigation is blocking by default. Cached values are reused when navigating between child routes with unchanged parameters.
 
 ## Usage in Components
 
@@ -73,13 +75,15 @@ export default defineRoute<{
     component: ProductDetailPage,
     errorComponent: GenericErrorPage,
     loadingComponent: LoadingSpinner,
-    inject: {
-        product: {
-            from: 'productId',
-            resolve: (productId: string) => {
-                return new RouteResourceRequestResolver(
-                    new ProductShowRequest(productId)
-                )
+    meta: {
+        inject: {
+            product: {
+                from: 'productId',
+                resolve: (productId: string) => {
+                    return new RouteResourceRequestResolver(
+                            new ProductShowRequest(productId)
+                    )
+                }
             }
         }
     }
@@ -164,13 +168,15 @@ export default defineRoute<{
     name: 'products.show',
     component: ProductDetailPage,
     lazy: false,
-    inject: {
-        product: {
-            from: 'productId',
-            resolve: (productId: string) => {
-                return new RouteResourceRequestResolver(
-                    new ProductShowRequest(productId)
-                )
+    meta: {
+        inject: {
+            product: {
+                from: 'productId',
+                resolve: (productId: string) => {
+                    return new RouteResourceRequestResolver(
+                            new ProductShowRequest(productId)
+                    )
+                }
             }
         }
     }

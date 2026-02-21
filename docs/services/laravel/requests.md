@@ -9,7 +9,7 @@ The `JsonBaseRequest` class is designed to work with Laravel's JSON responses, a
 We assume that Laravel's resources are used which output the requested data on the `data` json key.
 
 ````typescript
-import { JsonBaseRequest } from '@hank-it/ui/service/laravel/requests'
+import { JsonBaseRequest } from '@blueprint-ts/core/service/laravel/requests'
 
 export interface LaravelErrorResponse {
   message: string;

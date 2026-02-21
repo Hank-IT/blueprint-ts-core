@@ -1,11 +1,16 @@
 # Getting Started
 
-This library can be integrated with any frontend framework. It comes with built-in support for Vue 3, which is assumed
-throughout the documentation.
+This library may be integrated with any frontend framework. It comes with built-in support for Vue 3, which is assumed
+throughout the documentation. It also has features which are Vue-specific, such as form handling and validation.
 
 ````bash
-npm install @hank-it/ui --save
+npm install @blueprint-ts/core --save
 ````
+
+## Versioning
+
+Blueprint TS follows [Semantic Versioning](https://semver.org/). Upgrading from one major version to another may require
+some changes to your code, which will be documented in the Upgrading section of this documentation.
 
 ## Request Handling
 
@@ -19,11 +24,11 @@ boot process by using the static `setRequestDriver` method.
 
 ### Using the Fetch Driver
 
-To set up the fetch driver, import `BaseRequest` and `FetchDriver` from '@hank-it/ui/service/requests' and initialize
+To set up the fetch driver, import `BaseRequest` and `FetchDriver` from '@blueprint-ts/core/service/requests' and initialize
 the driver as shown:
 
 ```typescript
-import { BaseRequest, FetchDriver } from '@hank-it/ui/service/requests'
+import { BaseRequest, FetchDriver } from '@blueprint-ts/core/service/requests'
 
 BaseRequest.setRequestDriver(new FetchDriver())
 ```

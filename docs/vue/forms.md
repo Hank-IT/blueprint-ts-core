@@ -54,7 +54,7 @@ Special value types:
 - `Date` values are treated as scalars and preserved (not “object-walked”). When sent as JSON they serialize to ISO strings via `JSON.stringify()`, and when sent as multipart `FormData` they are appended as `toISOString()`.
 - `File`/`Blob` values are also treated as scalars and preserved for multipart uploads.
 
-#### A) Field Getter (common)
+#### A) Field Getter
 If your form `state` contains a field, you can define a getter for that same field name. During `buildPayload()`,
 `BaseForm` will call it with the field’s current value and use the return value in the payload.
 
@@ -215,8 +215,8 @@ await api.submitForm(form.buildPayload())
 ### 1. Create a Form Class
 
 ````typescript
-import { BaseForm, type PersistenceDriver, SessionStorageDriver } from '@hank-it/ui/vue/forms'
-import { RequiredRule, ValidationMode } from '@hank-it/ui/vue/forms/validation'
+import { BaseForm, type PersistenceDriver, SessionStorageDriver } from '@blueprint-ts/core/vue/forms'
+import { RequiredRule, ValidationMode } from '@blueprint-ts/core/vue/forms/validation'
 
 interface MyFormState {
     name: string
@@ -318,7 +318,7 @@ async function submitForm() {
 The `PropertyAwareArray` class enables special handling for array items. Each value of objects in the PropertyAwareArray will receive a v-model, errors, etc.:
 
 ````typescript
-import { BaseForm, PropertyAwareArray } from '@hank-it/ui/vue/forms'
+import { BaseForm, PropertyAwareArray } from '@blueprint-ts/core/vue/forms'
 
 export interface FormWithPositions {
   // ...other fields
@@ -400,7 +400,7 @@ If you ever need a plain object from the `properties` tree (e.g. for debugging o
 use `propertyAwareToRaw`:
 
 ````typescript
-import { propertyAwareToRaw } from '@hank-it/ui/vue/forms'
+import { propertyAwareToRaw } from '@blueprint-ts/core/vue/forms'
 
 const raw = propertyAwareToRaw<MyFormState>(form.properties)
 ````

@@ -8,7 +8,7 @@ URL, and the expected request/response types.
 The following example demonstrates how to define a GET request to the `/api/v1/expenses` endpoint:
 
 ```typescript
-import { BaseRequest, RequestMethodEnum, JsonResponse } from '@hank-it/ui/service/requests'
+import { BaseRequest, RequestMethodEnum, JsonResponse } from '@blueprint-ts/core/service/requests'
 
 export interface GenericResponseErrorInterface {
     message: string

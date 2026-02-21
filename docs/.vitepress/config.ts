@@ -49,6 +49,13 @@ export default defineConfig({
             ]
           }
         ]
+      },
+      {
+        text: 'Upgrading',
+        items: [
+          { text: 'v1 to v2', link: '/upgrading/v1-to-v2' },
+          { text: 'v2 to v3', link: '/upgrading/v2-to-v3' }
+        ]
       }
       /*{
         text: 'Helpers',

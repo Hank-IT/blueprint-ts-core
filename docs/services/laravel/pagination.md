@@ -4,8 +4,8 @@ The `PaginationJsonBaseRequest` class extends the functionality to handle Larave
 ## Example: Paginated Users List
 
 ````typescript
-import { PaginationJsonBaseRequest } from '@hank-it/ui/service/laravel/requests'
-import { PaginationResponse } from '@hank-it/ui/service/laravel/requests/responses'
+import { PaginationJsonBaseRequest } from '@blueprint-ts/core/service/laravel/requests'
+import { PaginationResponse } from '@blueprint-ts/core/service/laravel/requests/responses'
 
 export interface UserListParams {
   search?: string

@@ -49,6 +49,10 @@ export default defineConfig({
               { text: 'DeferredPromise', link: '/services/support/deferred-promise' }
             ]
           },
+          {
+            text: 'Persistence',
+            link: '/services/persistence/'
+          }
           //{ text: 'Support', link: '/services/support' },
           //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },
         ]
@@ -67,8 +71,29 @@ export default defineConfig({
         items: [
           { text: 'State', link: '/vue/state/' },
           {
+            text: 'Composables',
+            items: [
+              { text: 'useConfirmDialog', link: '/vue/composables/use-confirm-dialog' },
+              { text: 'useGlobalCheckbox', link: '/vue/composables/use-global-checkbox' },
+              { text: 'useIsEmpty', link: '/vue/composables/use-is-empty' },
+              { text: 'useIsOpen', link: '/vue/composables/use-is-open' },
+              { text: 'useIsOpenFromVar', link: '/vue/composables/use-is-open-from-var' },
+              { text: 'useModelWrapper', link: '/vue/composables/use-model-wrapper' },
+              { text: 'useOnOpen', link: '/vue/composables/use-on-open' }
+            ]
+          },
+          {
             text: 'Forms',
-            link: '/vue/forms'
+            items: [
+              { text: 'Overview', link: '/vue/forms/' },
+              { text: 'State And Properties', link: '/vue/forms/state-and-properties' },
+              { text: 'Validation', link: '/vue/forms/validation' },
+              { text: 'Building Payloads', link: '/vue/forms/payloads' },
+              { text: 'Errors', link: '/vue/forms/errors' },
+              { text: 'Persistence', link: '/vue/forms/persistence' },
+              { text: 'Arrays', link: '/vue/forms/arrays' },
+              { text: 'Utilities', link: '/vue/forms/utilities' }
+            ]
           },
           {
             text: 'Requests',
@@ -76,9 +101,12 @@ export default defineConfig({
               /*{ text: 'Usage with Composition API', link: '/vue/requests/composition' },
               { text: 'Loading States', link: '/vue/requests/loading' },
               { text: 'Error Handling', link: '/vue/requests/errors' },*/
-              { text: 'Loading', link: '/vue/requests/loading' },
-              { text: 'Route Resource Binding', link: '/vue/requests/route-resource-binding' }
+              { text: 'Loading', link: '/vue/requests/loading' }
             ]
+          },
+          {
+            text: 'Router',
+            items: [{ text: 'Route Resource Binding', link: '/vue/router/route-resource-binding' }]
           }
         ]
       },

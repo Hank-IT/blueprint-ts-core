@@ -1,7 +1,11 @@
 import { getCurrentInstance, h, onUnmounted, render } from 'vue'
 import { type Component } from 'vue'
 
-export type ConfirmDialogSeverity = 'info' | 'warning' | 'danger'
+export enum ConfirmDialogSeverity {
+  INFO = 'info',
+  WARNING = 'warning',
+  DANGER = 'danger'
+}
 
 export interface ConfirmDialogOptions {
   getMessage(): string

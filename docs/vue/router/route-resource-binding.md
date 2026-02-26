@@ -7,7 +7,7 @@ When using `vue-router`, you can automatically bind route parameters to resource
 To enable the router to load resources automatically, install the route injection plugin when initializing your router:
 
 ```ts
-import { installRouteInjection } from '@blueprint-ts/core'
+import { installRouteInjection } from '@blueprint-ts/core/vue/router/routeResourceBinding'
 
 installRouteInjection(router)
 ```
@@ -17,7 +17,7 @@ installRouteInjection(router)
 Use the `defineRoute` helper to define your routes and specify which parameters should be resolved into resources:
 
 ```ts
-import { defineRoute, RouteResourceRequestResolver } from '@blueprint-ts/core'
+import { defineRoute, RouteResourceRequestResolver } from '@blueprint-ts/core/vue/router/routeResourceBinding'
 import ProductDetailPage from '@/pages/ProductDetailPage.vue'
 
 export default defineRoute<{
@@ -62,7 +62,7 @@ const props = defineProps<{
 `RouteResourceBoundView` is a drop-in replacement for `<RouterView>` that automatically handles loading and error states. Define error and loading components directly in the route:
 
 ```ts
-import { defineRoute, RouteResourceRequestResolver } from '@blueprint-ts/core'
+import { defineRoute, RouteResourceRequestResolver } from '@blueprint-ts/core/vue/router/routeResourceBinding'
 import ProductDetailPage from '@/pages/ProductDetailPage.vue'
 import GenericErrorPage from '@/pages/GenericErrorPage.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -98,7 +98,7 @@ Then replace `<RouterView>` with `<RouteResourceBoundView>` in your layout:
 </template>
 
 <script setup lang="ts">
-import { RouteResourceBoundView } from '@blueprint-ts/core'
+import { RouteResourceBoundView } from '@blueprint-ts/core/vue/router/routeResourceBinding'
 </script>
 ```
 
@@ -198,7 +198,7 @@ Then use the `useRouteResource` composable inside your component:
 </template>
 
 <script setup lang="ts">
-import { useRouteResource } from '@blueprint-ts/core'
+import { useRouteResource } from '@blueprint-ts/core/vue/router/routeResourceBinding'
 
 const props = defineProps<{
     product: ProductResource

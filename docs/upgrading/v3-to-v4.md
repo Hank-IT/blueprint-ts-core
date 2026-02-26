@@ -122,6 +122,36 @@ with:
 import { isAtBottom } from '@blueprint-ts/core/support'
 ```
 
+## ConfirmDialogSeverity Is Now an Enum
+
+`ConfirmDialogSeverity` was changed from a string union type to an enum. Update any `getSeverity()` implementations to return the enum value.
+
+### How to Fix
+
+Replace:
+
+```typescript
+import { type ConfirmDialogOptions } from '@blueprint-ts/core/vue'
+
+export class MyConfirmOptions implements ConfirmDialogOptions {
+  getSeverity() {
+    return 'warning'
+  }
+}
+```
+
+with:
+
+```typescript
+import { type ConfirmDialogOptions, ConfirmDialogSeverity } from '@blueprint-ts/core/vue'
+
+export class MyConfirmOptions implements ConfirmDialogOptions {
+  getSeverity() {
+    return ConfirmDialogSeverity.WARNING
+  }
+}
+```
+
 ## Laravel Packages Moved
 
 Laravel modules moved from `@blueprint-ts/core/service/laravel/*` to `@blueprint-ts/core/laravel/*`.

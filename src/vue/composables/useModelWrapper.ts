@@ -6,6 +6,9 @@ export interface ModelValueOptions<T> extends ParentModelValueOptions {
   callback?: (value: T) => void
 }
 
+/**
+ * @deprecated Use Vue 3.4+ `defineModel()` instead.
+ */
 export default function <T, EmitType>(props: ModelValueProps, emit: EmitType, options: ModelValueOptions<T> = {}) {
   const { name = 'modelValue', callback = () => {} } = options
 

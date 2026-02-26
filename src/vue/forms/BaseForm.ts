@@ -5,9 +5,8 @@ import { type PersistedForm } from './types/PersistedForm'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray } from './PropertyAwareArray'
-import { BaseRule } from './validation/rules/BaseRule'
 import { type BidirectionalRule } from './validation/types/BidirectionalRule'
-import { ValidationMode } from './validation'
+import { ValidationMode, type ValidationRules } from './validation'
 
 export function propertyAwareToRaw<T>(propertyAwareObject: any): T {
   // Prüfe, ob es sich um ein Array handelt
@@ -120,15 +119,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   protected ignore: string[] = []
   protected errorMap: { [serverKey: string]: string | string[] } = {}
 
-  protected rules: Partial<
-    Record<
-      keyof FormBody,
-      {
-        rules: BaseRule<any>[]
-        options?: { mode?: ValidationMode }
-      }
-    >
-  > = {}
+  protected rules: ValidationRules<FormBody> = {}
 
   private fieldDependencies: Map<keyof FormBody, Set<keyof FormBody>> = new Map()
 
@@ -443,7 +434,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     this.validate()
   }
 
-  protected defineRules(): { [K in keyof FormBody]?: { rules: BaseRule<any>[]; options?: { mode?: ValidationMode } } } {
+  protected defineRules(): ValidationRules<FormBody> {
     return {}
   }
 

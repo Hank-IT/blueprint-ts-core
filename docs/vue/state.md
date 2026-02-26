@@ -19,6 +19,9 @@ The `State` class provides a reactive, type-safe state management system with ri
 Create a new state by extending the base class and defining your interface:
 
 ```typescript
+import { State } from '@blueprint-ts/core/vue/state'
+import { type PersistenceDriver, LocalStorageDriver } from '@blueprint-ts/core/persistenceDrivers'
+
 // Define your state interface
 interface UserStateInterface {
   name: string;
@@ -42,14 +45,15 @@ class UserState extends State<UserStateInterface> {
         }
       }, 
       {
-        persist: true // Enable persistence
+        persist: true, // Enable persistence
+        persistSuffix: 'user' // Optional namespace for the storage key
       }
     );
   }
   
   // Optional: Override persistence method
   protected override getPersistenceDriver(): PersistenceDriver {
-    return new LocalStorageDriver();
+    return new LocalStorageDriver()
   }
 }
 
@@ -79,6 +83,16 @@ userState.subscribe(
     console.log(`Name changed from ${oldValue} to ${newValue}`);
   }
 );
+````
+
+`subscribe` returns an unsubscribe function:
+
+````typescript
+const unsubscribe = userState.subscribe('name', () => {
+  // ...
+});
+
+unsubscribe();
 ````
 
 #### Subscribing to nested properties
@@ -121,7 +135,7 @@ userState.subscribe(
 ````
 
 ### State Persistence
-Enable state persistence by passing `persist: true` in the constructor options. Override the method `getPersistenceDriver` to use different storage mechanisms:
+Enable state persistence by passing `persist: true` in the constructor options. You can optionally set `persistSuffix` to namespace the storage key. Override the method `getPersistenceDriver` to use different storage mechanisms:
 
 ````typescript
 // Examples of different persistence drivers:
@@ -136,6 +150,8 @@ protected override getPersistenceDriver(): PersistenceDriver {
   // return new NonPersistentDriver();
 }
 ````
+
+You can inspect the computed key via `state.persistKey`.
 
 ### Importing and Exporting State
 
@@ -154,13 +170,6 @@ userState.import({
   }
 });
 
-// Import with hook suppression (doesn't trigger change handlers)
-userState.import(
-  { 
-    name: 'Jane Doe'
-  },
-  true // suppress hooks
-);
 ````
 
 ### Resetting State
@@ -179,6 +188,13 @@ userState.subscribe(
   },
   { executeOnReset: true }
 );
+````
+
+### Cleanup
+If you create short‑lived state instances, call `destroy()` to remove watchers and release references:
+
+````typescript
+userState.destroy();
 ````
 
 ## Advanced Features

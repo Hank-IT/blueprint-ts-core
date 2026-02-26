@@ -6,9 +6,9 @@ import useGlobalCheckbox from './composables/useGlobalCheckbox'
 import useIsEmpty from './composables/useIsEmpty'
 import useConfirmDialog from './composables/useConfirmDialog'
 
-import { type ConfirmDialogSeverity } from './composables/useConfirmDialog'
-import { type ConfirmDialogOptions } from './composables/useConfirmDialog'
+import { ConfirmDialogSeverity, type ConfirmDialogOptions } from './composables/useConfirmDialog'
 
 export { useIsOpen, useModelWrapper, useOnOpen, useIsOpenFromVar, useGlobalCheckbox, useIsEmpty, useConfirmDialog }
 
-export type { ConfirmDialogSeverity, ConfirmDialogOptions }
+export { ConfirmDialogSeverity }
+export type { ConfirmDialogOptions }

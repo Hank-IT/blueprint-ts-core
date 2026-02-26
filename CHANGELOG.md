@@ -1,3 +1,11 @@
+## v4.0.0-beta.2 - 2026-02-26 (beta)
+
+# [4.0.0-beta.2](/compare/v4.0.0-beta.1...v4.0.0-beta.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* Loosen typeing in FormDataFactory.ts fed4475
 ## v4.0.0-beta.1 - 2026-02-26 (beta)
 
 # [4.0.0-beta.1](/compare/v3.0.1...v4.0.0-beta.1) (2026-02-26)

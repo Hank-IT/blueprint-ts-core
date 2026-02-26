@@ -1,3 +1,20 @@
+## v4.0.0-beta.1 - 2026-02-26 (beta)
+
+# [4.0.0-beta.1](/compare/v3.0.1...v4.0.0-beta.1) (2026-02-26)
+
+
+### Features
+
+* Added abortBatch to VueRequestBatchLoader; Improved documentation for loading 9701045
+* Added multiple exceptions; Improved request error handling docs a6e4559
+* Improved BaseForm fdda88c
+* Improved documentation for supprt and helpers; Moved helpers into support namespace f92edef
+* Improved Laravel docs; Removed obsolte code 415273c
+* Improved laravel documentation; Moved laravel code outside of service directory bb9a708
+* Improved pagination docs; Refactored paginator ee1b901
+* Improved state class ffe3b03
+* Removed service namespace and moved core items directly under core namespace 3def966
+* Updated docs and introduced minor changes 2d51524
 ## v3.0.1 - 2026-02-21
 
 ## [3.0.1](/compare/v3.0.0...v3.0.1) (2026-02-21)

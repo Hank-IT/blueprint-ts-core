@@ -53,8 +53,6 @@ export default defineConfig({
             text: 'Persistence',
             link: '/services/persistence/'
           }
-          //{ text: 'Support', link: '/services/support' },
-          //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },
         ]
       },
       {
@@ -98,9 +96,6 @@ export default defineConfig({
           {
             text: 'Requests',
             items: [
-              /*{ text: 'Usage with Composition API', link: '/vue/requests/composition' },
-              { text: 'Loading States', link: '/vue/requests/loading' },
-              { text: 'Error Handling', link: '/vue/requests/errors' },*/
               { text: 'Loading', link: '/vue/requests/loading' }
             ]
           },
@@ -118,12 +113,6 @@ export default defineConfig({
           { text: 'v3 to v4', link: '/upgrading/v3-to-v4' }
         ]
       }
-      /*{
-        text: 'Helpers',
-        items: [
-          { text: 'Utility Functions', link: '/helpers/' }
-        ]
-      }*/
     ],
     nav: [
       { text: 'Home', link: '/' },

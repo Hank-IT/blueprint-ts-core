@@ -2,7 +2,10 @@ import { type BodyContract } from '../contracts/BodyContract'
 import { type HeadersContract } from '../contracts/HeadersContract'
 import { isObject } from '../../support/helpers'
 
-export class FormDataBody<RequestBody> implements BodyContract {
+type FormDataPrimitive = string | number | boolean | null | Date | Blob
+type FormDataValue = FormDataPrimitive | FormDataValue[] | { [key: string]: FormDataValue }
+
+export class FormDataBody<RequestBody extends Record<string, FormDataValue | undefined>> implements BodyContract {
   protected data: FormData
 
   public constructor(data: RequestBody) {
@@ -17,12 +20,12 @@ export class FormDataBody<RequestBody> implements BodyContract {
     return {}
   }
 
-  protected toFormData(data: RequestBody, form: FormData = new FormData(), namespace: string | null = null): FormData {
+  protected toFormData(data: Record<string, FormDataValue | undefined>, form: FormData = new FormData(), namespace: string | null = null): FormData {
     for (const property in data) {
       if (Object.prototype.hasOwnProperty.call(data, property)) {
         const formKey = namespace ? namespace + '[' + property + ']' : property
 
-        const value = (data as any)[property]
+        const value = data[property]
 
         // Null is a valid "explicitly empty" value in many APIs.
         // In multipart FormData we encode it as an empty string so the key is still present.
@@ -45,7 +48,8 @@ export class FormDataBody<RequestBody> implements BodyContract {
         // Support arrays via bracket notation: key[0], key[1], ...
         if (Array.isArray(value)) {
           for (let i = 0; i < value.length; i++) {
-            this.toFormData({ [String(i)]: value[i] } as any, form, formKey)
+            const indexed: Record<string, FormDataValue | undefined> = { [String(i)]: value[i] }
+            this.toFormData(indexed, form, formKey)
           }
           continue
         }
@@ -58,7 +62,7 @@ export class FormDataBody<RequestBody> implements BodyContract {
 
         // if the property is an object, use recursivity.
         if (isObject(value)) {
-          this.toFormData(value as any, form, formKey)
+          this.toFormData(value as Record<string, FormDataValue | undefined>, form, formKey)
           continue
         }
 

@@ -894,9 +894,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       if (this.state[key] instanceof PropertyAwareArray) {
         const originalValue = this.original[key] as PropertyAwareArray
         const values = [...originalValue].map((item) => cloneDeep(item))
-        this.replacePropertyAwareArray(key as keyof FormBody, values)
-        this.dirty[key as keyof FormBody] = values.map(() => false)
-        this.touched[key as keyof FormBody] = false
+        const typedKey = key as keyof FormBody
+        this.replacePropertyAwareArray(typedKey, values as Array<ArrayItem<FormBody[typeof typedKey]>>)
+        this.dirty[typedKey] = values.map(() => false)
+        this.touched[typedKey] = false
       } else if (Array.isArray(this.original[key])) {
         this.state[key] = cloneDeep(this.original[key])
         this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key])

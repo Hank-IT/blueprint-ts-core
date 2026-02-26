@@ -41,13 +41,13 @@ export type InjectConfig<Props extends Record<string, unknown>> = {
  */
 declare module 'vue-router' {
   interface RouteMeta {
-    _injectedProps?: Record<string, any>
-    _injectedResolvers?: Record<string, () => Promise<any>>
+    _injectedProps?: Record<string, unknown>
+    _injectedResolvers?: Record<string, () => Promise<unknown>>
     _injectionState?: Record<string, { loading: boolean; error: Error | null }>
     _errorComponent?: Component
     _loadingComponent?: Component
     _lazy?: boolean
-    refresh?: (propName: string, options?: { silent?: boolean }) => Promise<any>
+    refresh?: (propName: string, options?: { silent?: boolean }) => Promise<unknown>
     inject?: Record<string, unknown>
   }
 }

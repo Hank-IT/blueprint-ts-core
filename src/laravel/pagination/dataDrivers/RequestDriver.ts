@@ -1,8 +1,8 @@
-import { PaginationDataDto } from '../../../pagination/dtos/PaginationDataDto'
+import { PaginationDataDto } from '../../../service/pagination/dtos/PaginationDataDto'
 import { PaginationJsonBaseRequest } from '../../requests/PaginationJsonBaseRequest'
 import { PaginationResponse } from '../../requests/responses/PaginationResponse'
-import { type PaginateableRequestContract } from '../../../pagination/contracts/PaginateableRequestContract'
-import { type PaginationDataDriverContract } from '../../../pagination/contracts/PaginationDataDriverContract'
+import { type PaginateableRequestContract } from '../../../service/pagination/contracts/PaginateableRequestContract'
+import { type PaginationDataDriverContract } from '../../../service/pagination/contracts/PaginationDataDriverContract'
 
 type ExtractRequestTypes<T> =
   T extends PaginationJsonBaseRequest<any, undefined, infer Resource, object>

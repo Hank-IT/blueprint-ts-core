@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { JsonBaseRequest } from '../../../../src/service/laravel/requests'
-import { JsonResponse } from '../../../../src/service/laravel/requests'
+import { JsonBaseRequest } from '../../../../src/laravel/requests'
+import { JsonResponse } from '../../../../src/laravel/requests'
 import { JsonBodyFactory } from '../../../../src/service/requests'
 
 interface TestResource {

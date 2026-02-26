@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { JsonResponse } from '../../../../../src/service/laravel/requests'
+import { JsonResponse } from '../../../../../src/laravel/requests'
 
 describe('JsonResponse', () => {
   let jsonResponse: JsonResponse<any>; // Generische Instanz für flexibles Testen

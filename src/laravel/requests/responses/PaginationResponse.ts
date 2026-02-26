@@ -1,6 +1,6 @@
-import { JsonResponse } from '../../../requests/responses/JsonResponse'
+import { JsonResponse } from '../../../service/requests/responses/JsonResponse'
 import { type PaginationResponseBodyContract } from '../../pagination/contracts/PaginationResponseBodyContract'
-import { type PaginationResponseContract } from '../../../pagination/contracts/PaginationResponseContract'
+import { type PaginationResponseContract } from '../../../service/pagination/contracts/PaginationResponseContract'
 
 export class PaginationResponse<ResourceInterface>
   extends JsonResponse<PaginationResponseBodyContract<ResourceInterface>>

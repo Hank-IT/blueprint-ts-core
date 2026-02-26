@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { PaginationResponse } from '../../../../../src/service/laravel/requests'
+import { PaginationResponse } from '../../../../../src/laravel/requests'
 
 describe('PaginationResponse', () => {
   let paginationResponse: PaginationResponse<{ id: number; name: string }>;

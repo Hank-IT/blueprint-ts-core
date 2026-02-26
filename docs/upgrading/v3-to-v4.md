@@ -95,3 +95,21 @@ with:
 ```typescript
 import { isAtBottom } from '@blueprint-ts/core/service/support'
 ```
+
+## Laravel Packages Moved
+
+Laravel modules moved from `@blueprint-ts/core/service/laravel/*` to `@blueprint-ts/core/laravel/*`.
+
+### How to Fix
+
+Replace:
+
+```typescript
+import { JsonBaseRequest } from '@blueprint-ts/core/service/laravel/requests'
+```
+
+with:
+
+```typescript
+import { JsonBaseRequest } from '@blueprint-ts/core/laravel/requests'
+```

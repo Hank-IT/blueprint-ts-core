@@ -9,9 +9,9 @@ paginator classes.
 ## Example: Paginated Users List
 
 ````typescript
-import { PaginationJsonBaseRequest } from '@blueprint-ts/core/service/laravel/requests'
-import { PaginationResponse } from '@blueprint-ts/core/service/laravel/requests/responses'
-import { RequestDriver } from '@blueprint-ts/core/service/laravel/pagination'
+import { PaginationJsonBaseRequest } from '@blueprint-ts/core/laravel/requests'
+import { PaginationResponse } from '@blueprint-ts/core/laravel/requests/responses'
+import { RequestDriver } from '@blueprint-ts/core/laravel/pagination'
 import { PageAwarePaginator } from '@blueprint-ts/core/service/pagination'
 
 export interface UserListParams {

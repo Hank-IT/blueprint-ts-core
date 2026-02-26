@@ -1,6 +1,6 @@
-import { BaseRequest } from '../../requests/BaseRequest'
+import { BaseRequest } from '../../service/requests/BaseRequest'
 import { type PaginationResponseBodyContract } from '../pagination/contracts/PaginationResponseBodyContract'
-import { type PaginationResponseContract } from '../../pagination/contracts/PaginationResponseContract'
+import { type PaginationResponseContract } from '../../service/pagination/contracts/PaginationResponseContract'
 import { PaginationResponse } from './responses/PaginationResponse'
 
 export abstract class PaginationJsonBaseRequest<

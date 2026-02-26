@@ -1,7 +1,7 @@
-import { BaseRequest } from '../../requests/BaseRequest'
+import { BaseRequest } from '../../service/requests/BaseRequest'
 import { JsonResponse } from './responses/JsonResponse'
-import { JsonBodyFactory } from '../../requests/factories/JsonBodyFactory'
-import { type BodyFactoryContract } from '../../requests/contracts/BodyFactoryContract'
+import { JsonBodyFactory } from '../../service/requests/factories/JsonBodyFactory'
+import { type BodyFactoryContract } from '../../service/requests/contracts/BodyFactoryContract'
 
 export interface JsonResponseInterface<ResourceInterface> {
   data: ResourceInterface

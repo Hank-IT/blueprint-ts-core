@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { PaginationJsonBaseRequest } from '../../../../src/service/laravel/requests'
-import { PaginationResponse } from '../../../../src/service/laravel/requests'
+import { PaginationJsonBaseRequest } from '../../../../src/laravel/requests'
+import { PaginationResponse } from '../../../../src/laravel/requests'
 
 interface TestResource {
   id: number;

@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { RequestDriver } from '../../../../../src/service/laravel/pagination'
+import { RequestDriver } from '../../../../../src/laravel/pagination'
 import { PaginationDataDto } from '../../../../../src/service/pagination'
-import { PaginationResponse } from '../../../../../src/service/laravel/requests'
+import { PaginationResponse } from '../../../../../src/laravel/requests'
 
 // Mocks für Schnittstellen und Klassen
 class MockRequest {

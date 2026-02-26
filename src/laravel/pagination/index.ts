@@ -1,5 +1,5 @@
 import { type PaginationResponseBodyContract } from './contracts/PaginationResponseBodyContract'
-import { RequestDriver } from '../pagination/dataDrivers/RequestDriver'
+import { RequestDriver } from './dataDrivers/RequestDriver'
 
 export type { PaginationResponseBodyContract }
 

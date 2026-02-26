@@ -1,4 +1,4 @@
-# Basics
+# Getting Started
 
 Each API endpoint is represented as a separate class that extends `BaseRequest`. This class specifies the HTTP Method,
 URL, and the expected request/response types.
@@ -109,7 +109,7 @@ export class ExpenseIndexRequest extends BaseRequest<
 }
 ```
 
-## Explanation
+### Explanation
 
 - **HTTP Method**: Uses `GET` to retrieve data from the `/api/v1/expenses` endpoint.
 - **Error Handling**: On failure (4XX/5XX status codes), the response will conform to `GenericResponseErrorInterface`.
@@ -118,9 +118,7 @@ export class ExpenseIndexRequest extends BaseRequest<
 - **Request Body**: Since this is a GET request, the body is `undefined`.
 - **Query Parameters**: Accepts query parameters that match the `ExpenseIndexRequestParams` interface.
 
----
-
-## Sending the Request
+### Sending the Request
 
 Once the request is defined, you can send it using the following code:
 
@@ -133,4 +131,71 @@ const response: JsonResponse<ExpenseIndexRequestResponseBody> = await request.se
 const body = response.getBody() // Type: ExpenseIndexRequestResponseBody
 ```
 
-This completes the setup and usage of the request driver and custom requests. You can now use these patterns to create additional requests as needed.
+## Example: Create Expense Request (POST)
+
+This example demonstrates a POST request that sends a JSON body by overriding `getRequestBodyFactory()`:
+
+```typescript
+import {
+    BaseRequest,
+    RequestMethodEnum,
+    JsonResponse,
+    JsonBodyFactory
+} from '@blueprint-ts/core/service/requests'
+
+export interface CreateExpensePayload {
+    title: string
+    amount: number
+}
+
+export interface CreateExpenseResponseBody {
+    id: string
+}
+
+export class CreateExpenseRequest extends BaseRequest<
+        boolean,
+        GenericResponseErrorInterface,
+        CreateExpenseResponseBody,
+        JsonResponse<CreateExpenseResponseBody>,
+        CreateExpensePayload
+> {
+    public method(): RequestMethodEnum {
+        return RequestMethodEnum.POST
+    }
+
+    public url(): string {
+        return '/api/v1/expenses'
+    }
+
+    public getResponse(): JsonResponse<CreateExpenseResponseBody> {
+        return new JsonResponse<CreateExpenseResponseBody>()
+    }
+
+    public override getRequestBodyFactory() {
+        return new JsonBodyFactory<CreateExpensePayload>()
+    }
+}
+```
+
+### Explanation
+
+- **HTTP Method**: Uses `POST` to create a new expense.
+- **Error Handling**: On failure (4XX/5XX status codes), the response will conform to `GenericResponseErrorInterface`.
+- **Success Response**: A successful response is expected to follow the `CreateExpenseResponseBody` interface.
+- **Response Format**: The response is of type JSON, as indicated by `JsonResponse`.
+- **Request Body**: Uses `JsonBodyFactory` to send JSON with `Content-Type: application/json`.
+
+### Sending the Request
+
+```typescript
+const request = new CreateExpenseRequest()
+
+const response = await request.setBody({
+    title: 'Office supplies',
+    amount: 42
+}).send()
+
+const body = response.getBody() // Type: CreateExpenseResponseBody
+```
+
+Note: If you use Laravel or an API that wraps payloads under a `data` key, consider using `JsonBaseRequest` from the Laravel integration.

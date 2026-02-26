@@ -19,8 +19,15 @@ export default defineConfig({
           {
             text: 'Requests',
             items: [
-              { text: 'Basics', link: '/services/requests/basics' },
+              { text: 'Getting Started', link: '/services/requests/getting-started' },
               { text: 'Loading', link: '/services/requests/loading' },
+              { text: 'Drivers', link: '/services/requests/drivers' },
+              { text: 'Responses', link: '/services/requests/responses' },
+              { text: 'Request Bodies', link: '/services/requests/request-bodies' },
+              { text: 'Headers', link: '/services/requests/headers' },
+              { text: 'Aborting Requests', link: '/services/requests/abort-requests' },
+              { text: 'Events', link: '/services/requests/events' },
+              { text: 'Bulk Requests', link: '/services/requests/bulk-requests' },
               { text: 'Error Handling', link: '/services/requests/error-handling' }
             ]
           },

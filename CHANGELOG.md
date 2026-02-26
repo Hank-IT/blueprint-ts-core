@@ -1,3 +1,11 @@
+## v4.0.0-beta.3 - 2026-02-26 (beta)
+
+# [4.0.0-beta.3](/compare/v4.0.0-beta.2...v4.0.0-beta.3) (2026-02-26)
+
+
+### Bug Fixes
+
+* Make PropertyAwareArray nominal to avoid array type confusion b68b6fe
 ## v4.0.0-beta.2 - 2026-02-26 (beta)
 
 # [4.0.0-beta.2](/compare/v4.0.0-beta.1...v4.0.0-beta.2) (2026-02-26)

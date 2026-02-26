@@ -40,14 +40,7 @@ export class StatePaginator<ResourceInterface> extends BasePaginator<ResourceInt
     return this.dataDriver
   }
 
-  public init(): Promise<StatePaginationDataDto<ResourceInterface[]>> {
-    this.initialized = true
-    this.currentState = null
-
-    return this.loadData()
-  }
-
-  public refresh(options?: PaginatorLoadDataOptions): Promise<StatePaginationDataDto<ResourceInterface[]>> {
+  public load(options?: PaginatorLoadDataOptions): Promise<StatePaginationDataDto<ResourceInterface[]>> {
     this.currentState = null
 
     return this.loadData({ ...options, flush: true })
@@ -88,5 +81,6 @@ export class StatePaginator<ResourceInterface> extends BasePaginator<ResourceInt
     }
 
     this.viewDriver.setTotal(dto.getTotal())
+    this.initialized = true
   }
 }

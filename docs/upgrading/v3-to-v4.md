@@ -30,3 +30,45 @@ const bulkRequestSenderInstance = new BulkRequestSender<
 ```
 
 If you already have typed wrappers, TypeScript will infer the rest once the sender is typed.
+
+## Paginator `init()` Was Removed
+
+Pagination now marks a paginator as initialized only after the first successful load. The `init()` method was removed
+in favor of `load()`.
+
+### What Changed
+
+- `isInitialized()` now becomes `true` only after a successful data load.
+- `init()` no longer exists.
+
+### How to Fix
+
+Replace `init(...)` with `load(...)`:
+
+```typescript
+await paginator.load()
+```
+
+## Paginator `refresh()` Was Removed
+
+`refresh()` was removed in favor of `load()` to make the first load more intuitive.
+
+### How to Fix
+
+Replace `refresh(...)` with `load(...)`:
+
+```typescript
+await paginator.load()
+```
+
+## Pagination Setters No Longer Trigger Loads
+
+`setPageNumber()` and `setPageSize()` now only update state. Call `load()` to fetch data:
+
+```typescript
+await paginator.setPageNumber(2).load()
+await paginator.setPageSize(50).load()
+```
+
+`setPage()` was renamed to `setPageNumber()`.
+Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastPage`) still load the new page in one call.

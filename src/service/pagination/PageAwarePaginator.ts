@@ -40,28 +40,18 @@ export class PageAwarePaginator<ResourceInterface> extends BasePaginator<Resourc
     return this.dataDriver
   }
 
-  public init(pageNumber: number, pageSize: number): Promise<PaginationDataDto<ResourceInterface[]>> {
-    this.initialized = true
-
-    if (pageNumber && pageSize) {
-      return this.loadData(pageNumber, pageSize)
-    }
-
-    return this.loadData(this.getCurrentPage(), this.getPageSize())
-  }
-
-  public refresh(pageNumber?: number, options?: PaginatorLoadDataOptions): Promise<PaginationDataDto<ResourceInterface[]>> {
+  public load(pageNumber?: number, options?: PaginatorLoadDataOptions): Promise<PaginationDataDto<ResourceInterface[]>> {
     if (pageNumber !== undefined) {
-      return this.setPage(pageNumber, options)
+      this.setPageNumber(pageNumber)
     }
 
     return this.loadData(this.getCurrentPage(), this.getPageSize(), options)
   }
 
-  public setPage(pageNumber: number, options?: PaginatorLoadDataOptions): Promise<PaginationDataDto<ResourceInterface[]>> {
+  public setPageNumber(pageNumber: number): this {
     this.viewDriver.setPage(pageNumber)
 
-    return this.loadData(this.viewDriver.getCurrentPage(), this.viewDriver.getPageSize(), options)
+    return this
   }
 
   public getLastPage(): number {
@@ -69,19 +59,27 @@ export class PageAwarePaginator<ResourceInterface> extends BasePaginator<Resourc
   }
 
   public toNextPage(): Promise<PaginationDataDto<ResourceInterface[]>> {
-    return this.setPage(this.getCurrentPage() + 1)
+    this.setPageNumber(this.getCurrentPage() + 1)
+
+    return this.load()
   }
 
   public toFirstPage(): Promise<PaginationDataDto<ResourceInterface[]>> {
-    return this.setPage(1)
+    this.setPageNumber(1)
+
+    return this.load()
   }
 
   public toLastPage(): Promise<PaginationDataDto<ResourceInterface[]>> {
-    return this.setPage(this.viewDriver.getLastPage())
+    this.setPageNumber(this.viewDriver.getLastPage())
+
+    return this.load()
   }
 
   public toPreviousPage(): Promise<PaginationDataDto<ResourceInterface[]>> {
-    return this.setPage(this.getCurrentPage() - 1)
+    this.setPageNumber(this.getCurrentPage() - 1)
+
+    return this.load()
   }
 
   public getCurrentPage(): number {
@@ -100,14 +98,14 @@ export class PageAwarePaginator<ResourceInterface> extends BasePaginator<Resourc
     return this.viewDriver.getPageSize()
   }
 
-  public setPageSize(pageSize: number): Promise<PaginationDataDto<ResourceInterface[]>> {
+  public setPageSize(pageSize: number): this {
     this.viewDriver.setPageSize(pageSize)
 
     if (this.getCurrentPage() * pageSize > this.getTotal()) {
-      return this.setPage(1)
+      this.setPageNumber(1)
     }
 
-    return this.loadData(this.viewDriver.getCurrentPage(), this.viewDriver.getPageSize())
+    return this
   }
 
   public getPages(): number[] {

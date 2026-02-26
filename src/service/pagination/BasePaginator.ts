@@ -21,6 +21,40 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
     return this.viewDriver.getData()
   }
 
+  public updateRows(
+    predicate: (row: ResourceInterface, index: number, data: ResourceInterface[]) => boolean,
+    updater: (row: ResourceInterface, index: number, data: ResourceInterface[]) => ResourceInterface | void
+  ): number {
+    const data = this.viewDriver.getData()
+    let updated = 0
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i]
+
+      if (row === undefined) {
+        continue
+      }
+
+      if (!predicate(row, i, data)) {
+        continue
+      }
+
+      const result = updater(row, i, data)
+
+      if (result !== undefined) {
+        data[i] = result
+      }
+
+      updated++
+    }
+
+    if (updated > 0) {
+      this.viewDriver.setData(data)
+    }
+
+    return updated
+  }
+
   public getTotal(): number {
     return this.viewDriver.getTotal()
   }
@@ -32,5 +66,6 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
 
     this.viewDriver.setData(dto.getData())
     this.viewDriver.setTotal(dto.getTotal())
+    this.initialized = true
   }
 }

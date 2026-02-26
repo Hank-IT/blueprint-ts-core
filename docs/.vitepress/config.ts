@@ -31,7 +31,16 @@ export default defineConfig({
               { text: 'Error Handling', link: '/services/requests/error-handling' }
             ]
           },
-          //{ text: 'Pagination', link: '/services/pagination' },
+          {
+            text: 'Pagination',
+            items: [
+              { text: 'Overview', link: '/services/pagination/' },
+              { text: 'Page-Aware', link: '/services/pagination/page-aware' },
+              { text: 'Infinite Scroller', link: '/services/pagination/infinite-scroller' },
+              { text: 'State/Cursor', link: '/services/pagination/state-pagination' },
+              { text: 'Updating Rows', link: '/services/pagination/updating-rows' }
+            ]
+          },
           //{ text: 'Support', link: '/services/support' },
           //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },
           {

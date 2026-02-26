@@ -17,5 +17,6 @@ export class InfiniteScroller<ResourceInterface> extends PageAwarePaginator<Reso
     }
 
     this.viewDriver.setTotal(dto.getTotal())
+    this.initialized = true
   }
 }

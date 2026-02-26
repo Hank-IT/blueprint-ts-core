@@ -41,13 +41,13 @@ const request = new UserIndexRequest()
 const paginator = new Paginator(new RequestDriver(request))
 
 // Fetch the initial data
-paginator.init(1, 10)
+paginator.load(1)
 
 // Get current page data
 paginator.getPageData()
 
 // Change page
-paginator.setPageSize(value)
+await paginator.setPageSize(value).load()
 
 // Get current page size
 paginator.getPageSize()

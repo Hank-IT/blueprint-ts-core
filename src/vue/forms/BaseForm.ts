@@ -1,4 +1,4 @@
-import { reactive, computed, toRaw, type ComputedRef, watch } from 'vue'
+import { reactive, computed, toRaw, type ComputedRef, type WritableComputedRef, watch } from 'vue'
 import { camelCase, upperFirst, cloneDeep, isEqual } from 'lodash-es'
 import isEqualWith from 'lodash-es/isEqualWith'
 import { type PersistedForm } from './types/PersistedForm'
@@ -21,7 +21,7 @@ type FieldErrors = ErrorMessages | ErrorObject | ErrorArray
 type ErrorBag = Record<string, FieldErrors>
 
 type FieldProperty<T> = {
-  model: ComputedRef<T>
+  model: WritableComputedRef<T>
   errors: ErrorMessages
   dirty: boolean
   touched: boolean
@@ -164,7 +164,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   private readonly dirty: DirtyMap<FormBody>
   private readonly touched: Record<keyof FormBody, boolean>
   private readonly original: FormBody
-  private readonly _model: { [K in keyof FormBody]: ComputedRef<FormBody[K]> }
+  private readonly _model: { [K in keyof FormBody]: WritableComputedRef<FormBody[K]> }
   private _errors: ErrorBag = reactive<ErrorBag>({})
   private _hasErrors: ComputedRef<boolean>
   protected append: string[] = []
@@ -375,7 +375,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     this.buildFieldDependencies()
 
     this.state = reactive(initialData) as FormBody
-    this._model = {} as { [K in keyof FormBody]: ComputedRef<FormBody[K]> }
+    this._model = {} as { [K in keyof FormBody]: WritableComputedRef<FormBody[K]> }
 
     for (const key in this.state) {
       const value = this.state[key]

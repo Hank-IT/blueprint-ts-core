@@ -15,6 +15,11 @@ export class VueRequestBatchLoader implements RequestLoaderContract<Ref<boolean>
     this.completed.value = 0
   }
 
+  public abortBatch() {
+    this.expected = 0
+    this.completed.value = 0
+  }
+
   public isLoading(): Ref<boolean> {
     return computed(() => this.inFlight.value > 0 || (this.expected > 0 && this.completed.value < this.expected))
   }

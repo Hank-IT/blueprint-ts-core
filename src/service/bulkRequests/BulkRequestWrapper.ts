@@ -1,8 +1,8 @@
 import { type BaseRequestContract } from '../requests'
 
 export class BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface extends object> {
-  protected response: any = null
-  protected error: any = null
+  protected response: ResponseClass | null = null
+  protected error: unknown | null = null
   protected sent: boolean = false
 
   public constructor(protected request: BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>) {}
@@ -27,11 +27,11 @@ export class BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, 
     return this.request.isLoading()
   }
 
-  public getResponse() {
+  public getResponse(): ResponseClass | null {
     return this.response
   }
 
-  public getError() {
+  public getError(): unknown | null {
     return this.error
   }
 
@@ -40,7 +40,7 @@ export class BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, 
   }
 
   public hasError(): boolean {
-    return Boolean(this.getError())
+    return this.error !== null
   }
 
   public wasSent(): boolean {

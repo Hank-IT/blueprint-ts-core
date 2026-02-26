@@ -1,26 +1,30 @@
 import { BulkRequestWrapper } from './BulkRequestWrapper'
 import { BulkRequestEventEnum } from './BulkRequestEvent.enum'
-import { BaseRequest } from '../requests'
 
 export enum BulkRequestExecutionMode {
   PARALLEL = 'parallel',
   SEQUENTIAL = 'sequential'
 }
 
-export class BulkRequestSender {
-  // @ts-expect-error
-  protected events: Map<BulkRequestEventEnum, ((req: BulkRequestWrapper<BaseRequest>) => void)[]> = new Map()
+export class BulkRequestSender<
+  RequestLoaderLoadingType = unknown,
+  RequestBodyInterface = unknown,
+  ResponseClass = unknown,
+  RequestParamsInterface extends object = object
+> {
+  protected events: Map<
+    BulkRequestEventEnum,
+    ((req: BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>) => void)[]
+  > = new Map()
   protected abortController: AbortController | undefined = undefined
 
   public constructor(
-    // @ts-expect-error
-    protected requests: BulkRequestWrapper<BaseRequest>[] = [],
+    protected requests: BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>[] = [],
     protected executionMode: BulkRequestExecutionMode = BulkRequestExecutionMode.PARALLEL,
     protected retryCount: number = 0
   ) {}
 
-  // @ts-expect-error
-  public setRequests(requests: BulkRequestWrapper<BaseRequest>[] = []) {
+  public setRequests(requests: BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>[] = []) {
     this.requests = requests
 
     return this
@@ -39,11 +43,13 @@ export class BulkRequestSender {
   }
 
   public get isLoading(): boolean {
-    return this.requests.some((req) => req.isLoading())
+    return this.requests.some((req) => Boolean(req.isLoading() as unknown))
   }
 
-  // @ts-expect-error
-  public on(event: BulkRequestEventEnum, callback: (req: BulkRequestWrapper<BaseRequest>) => void): this {
+  public on(
+    event: BulkRequestEventEnum,
+    callback: (req: BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>) => void
+  ): this {
     if (!this.events.has(event)) {
       this.events.set(event, [])
     }
@@ -59,8 +65,10 @@ export class BulkRequestSender {
     return this
   }
 
-  // @ts-expect-error
-  protected emit(event: BulkRequestEventEnum, req: BulkRequestWrapper<BaseRequest>): void {
+  protected emit(
+    event: BulkRequestEventEnum,
+    req: BulkRequestWrapper<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface>
+  ): void {
     const callbacks = this.events.get(event) || []
 
     callbacks.forEach((callback) => callback(req))
@@ -89,10 +97,14 @@ export class BulkRequestSender {
     }
 
     return {
-      getSuccessCount: () => this.requests.filter((r) => !r.getError()).length,
-      getErrorCount: () => this.requests.filter((r) => r.getError()).length,
-      getSuccessfulResponses: () => this.requests.filter((r) => !r.getError()).map((r) => r.getResponse()),
-      getFailedResponses: () => this.requests.filter((r) => r.getError()).map((r) => r.getError())
+      getSuccessCount: () => this.requests.filter((r) => !r.hasError()).length,
+      getErrorCount: () => this.requests.filter((r) => r.hasError()).length,
+      getSuccessfulResponses: () =>
+        this.requests
+          .filter((r) => !r.hasError())
+          .map((r) => r.getResponse())
+          .filter((response): response is ResponseClass => response !== null),
+      getFailedResponses: () => this.requests.filter((r) => r.hasError()).map((r) => r.getError())
     }
   }
 

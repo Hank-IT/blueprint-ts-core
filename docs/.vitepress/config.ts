@@ -20,6 +20,7 @@ export default defineConfig({
             text: 'Requests',
             items: [
               { text: 'Basics', link: '/services/requests/basics' },
+              { text: 'Loading', link: '/services/requests/loading' },
               { text: 'Error Handling', link: '/services/requests/error-handling' }
             ]
           },
@@ -51,6 +52,7 @@ export default defineConfig({
               /*{ text: 'Usage with Composition API', link: '/vue/requests/composition' },
               { text: 'Loading States', link: '/vue/requests/loading' },
               { text: 'Error Handling', link: '/vue/requests/errors' },*/
+              { text: 'Loading', link: '/vue/requests/loading' },
               { text: 'Route Resource Binding', link: '/vue/requests/route-resource-binding' }
             ]
           }
@@ -60,7 +62,8 @@ export default defineConfig({
         text: 'Upgrading',
         items: [
           { text: 'v1 to v2', link: '/upgrading/v1-to-v2' },
-          { text: 'v2 to v3', link: '/upgrading/v2-to-v3' }
+          { text: 'v2 to v3', link: '/upgrading/v2-to-v3' },
+          { text: 'v3 to v4', link: '/upgrading/v3-to-v4' }
         ]
       }
       /*{

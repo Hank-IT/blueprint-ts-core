@@ -13,7 +13,6 @@ import { FormDataFactory } from './factories/FormDataFactory'
 import { type BodyContract } from './contracts/BodyContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
 import { type RequestDriverContract } from './contracts/RequestDriverContract'
-import { type PaginationParamsContract } from '../laravel/pagination/contracts/PaginationParamsContract'
 import { type RequestLoaderFactoryContract } from './contracts/RequestLoaderFactoryContract'
 import { type DriverConfigContract } from './contracts/DriverConfigContract'
 import { type BodyFactoryContract } from './contracts/BodyFactoryContract'
@@ -39,7 +38,6 @@ export {
 }
 
 export type {
-  PaginationParamsContract,
   RequestDriverContract,
   RequestLoaderContract,
   BodyContract,

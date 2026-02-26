@@ -72,3 +72,8 @@ await paginator.setPageSize(50).load()
 
 `setPage()` was renamed to `setPageNumber()`.
 Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastPage`) still load the new page in one call.
+
+## PaginationParamsContract Was Removed
+
+`PaginationParamsContract` was removed from the Laravel pagination exports because it was unused. Define your own params
+interface in your app instead.

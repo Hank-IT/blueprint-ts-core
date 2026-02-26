@@ -43,14 +43,14 @@ export default defineConfig({
           },
           //{ text: 'Support', link: '/services/support' },
           //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },
-          {
-            text: 'Laravel Integration',
-            collapsed: true,
-            items: [
-              { text: 'Laravel Requests', link: '/services/laravel/requests' },
-              { text: 'Laravel Pagination', link: '/services/laravel/pagination' }
-            ]
-          }
+        ]
+      },
+      {
+        text: 'Laravel',
+        collapsed: false,
+        items: [
+          { text: 'Requests', link: '/services/laravel/requests' },
+          { text: 'Pagination', link: '/services/laravel/pagination' }
         ]
       },
       {

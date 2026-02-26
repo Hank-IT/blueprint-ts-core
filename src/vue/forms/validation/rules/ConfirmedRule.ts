@@ -1,7 +1,7 @@
 import { BaseRule } from './BaseRule'
 import { type BidirectionalRule } from '../types/BidirectionalRule'
 
-export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> implements BidirectionalRule {
+export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> implements BidirectionalRule<FormBody> {
   protected message: string
 
   public constructor(
@@ -33,7 +33,7 @@ export class ConfirmedRule<FormBody extends object> extends BaseRule<FormBody> i
   }
 
   // Implement BidirectionalRule interface
-  public getBidirectionalFields(): string[] {
-    return [this.confirmationField as string]
+  public getBidirectionalFields(): Array<keyof FormBody> {
+    return [this.confirmationField]
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ErrorHandler } from '../../../src/requests'
 
 import {
@@ -8,134 +8,137 @@ import {
   ValidationException,
   ResponseException,
   NoResponseReceivedException,
-  ServerErrorException
+  ServerErrorException,
+  InvalidJsonException
 } from '../../../src/requests/exceptions';
 
 describe('ErrorHandler', () => {
-  it('should throw UnauthorizedException for status code 401', () => {
-    // Mock-response that mimics a ResponseHandlerContract
+  beforeEach(() => {
+    ErrorHandler.registerHandler(undefined);
+  });
+
+  it('should throw UnauthorizedException for status code 401', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(401),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    // Mock the ResponseException with the mocked response
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(UnauthorizedException);
+    await expect(handler.handle()).rejects.toThrow(UnauthorizedException);
 
-    // Assert that methods were called
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw NotFoundException for status code 404', () => {
+  it('should throw NotFoundException for status code 404', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(404),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(NotFoundException);
+    await expect(handler.handle()).rejects.toThrow(NotFoundException);
 
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw PageExpiredException for status code 419', () => {
+  it('should throw PageExpiredException for status code 419', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(419),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(PageExpiredException);
+    await expect(handler.handle()).rejects.toThrow(PageExpiredException);
 
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw ValidationException for status code 422', () => {
+  it('should throw ValidationException for status code 422', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(422),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(ValidationException);
+    await expect(handler.handle()).rejects.toThrow(ValidationException);
 
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw ServerErrorException for status code 500', () => {
+  it('should throw ServerErrorException for status code 500', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(500),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(ServerErrorException);
+    await expect(handler.handle()).rejects.toThrow(ServerErrorException);
 
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw NoResponseReceivedException if no status code in response', () => {
+  it('should throw NoResponseReceivedException if response body is undefined', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(undefined),
+      json: vi.fn().mockResolvedValue(undefined),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(NoResponseReceivedException);
-
-    expect(mockError.getResponse).toHaveBeenCalled();
-    expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    await expect(handler.handle()).rejects.toThrow(NoResponseReceivedException);
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should throw ResponseException for other status codes', () => {
+  it('should throw ResponseException for other status codes', async () => {
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(499),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
-    };
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(() => new ErrorHandler(mockError as any)).toThrow(ResponseException);
+    await expect(handler.handle()).rejects.toThrow(ResponseException);
 
-    expect(mockError.getResponse).toHaveBeenCalled();
     expect(mockResponse.getStatusCode).toHaveBeenCalled();
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 
-  it('should correctly use global error handler if registered', () => {
-    // Set up the global handler
+  it('should correctly use global error handler if registered', async () => {
     const handlerMock = vi.fn().mockReturnValue(false);
     ErrorHandler.registerHandler(handlerMock);
 
     const mockResponse = {
       getStatusCode: vi.fn().mockReturnValue(500),
+      json: vi.fn().mockResolvedValue({}),
     };
 
-    const mockError = {
-      getResponse: vi.fn().mockReturnValue(mockResponse),
+    const handler = new ErrorHandler(mockResponse as any)
+
+    await expect(handler.handle()).resolves.toBeUndefined();
+
+    expect(handlerMock).toHaveBeenCalledWith(mockResponse);
+    expect(mockResponse.json).not.toHaveBeenCalled();
+  });
+
+  it('should throw InvalidJsonException when response parsing fails', async () => {
+    const mockResponse = {
+      getStatusCode: vi.fn().mockReturnValue(500),
+      json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
     };
 
-    // Since the handler returns false, the error should not propagate further
-    expect(() => new ErrorHandler(mockError as any)).not.toThrow();
+    const handler = new ErrorHandler(mockResponse as any)
 
-    expect(handlerMock).toHaveBeenCalledWith(mockError);
+    await expect(handler.handle()).rejects.toThrow(InvalidJsonException);
+    expect(mockResponse.json).toHaveBeenCalled();
   });
 });

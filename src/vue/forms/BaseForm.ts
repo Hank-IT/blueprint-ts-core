@@ -5,56 +5,107 @@ import { type PersistedForm } from './types/PersistedForm'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray } from './PropertyAwareArray'
-import { type BidirectionalRule } from './validation/types/BidirectionalRule'
 import { ValidationMode, type ValidationRules } from './validation'
 
-export function propertyAwareToRaw<T>(propertyAwareObject: any): T {
-  // Prüfe, ob es sich um ein Array handelt
+type DirtyObject = Record<string, boolean>
+type DirtyArray = Array<boolean | DirtyObject>
+type DirtyState = boolean | DirtyObject | DirtyArray
+type DirtyMap<FormBody extends object> = Record<keyof FormBody, DirtyState>
+
+type ErrorMessages = string[]
+interface ErrorObject {
+  [key: string]: FieldErrors
+}
+type ErrorArray = Array<ErrorObject>
+type FieldErrors = ErrorMessages | ErrorObject | ErrorArray
+type ErrorBag = Record<string, FieldErrors>
+
+type FieldProperty<T> = {
+  model: ComputedRef<T>
+  errors: ErrorMessages
+  dirty: boolean
+  touched: boolean
+}
+
+type FormKey<FormBody extends object> = Extract<keyof FormBody, string>
+type RequestKey<RequestBody extends object> = Extract<keyof RequestBody, string>
+type ArrayItem<T> = T extends Array<infer Item> ? Item : never
+type PropertyAwareInput<T> = T extends PropertyAwareArray<infer Item> ? Array<Item> | PropertyAwareArray<Item> : T
+
+type FormProperties<FormBody extends object> = {
+  [K in keyof FormBody]: FormBody[K] extends PropertyAwareArray<infer Item>
+    ? Array<Item extends object ? { [P in keyof Item]: FieldProperty<Item[P]> } : { value: FieldProperty<Item> }>
+    : FieldProperty<FormBody[K]>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isErrorMessages(value: unknown): value is ErrorMessages {
+  return Array.isArray(value) && (value.length === 0 || typeof value[0] === 'string')
+}
+
+function isErrorArray(value: unknown): value is ErrorArray {
+  return Array.isArray(value) && value.length > 0 && isRecord(value[0])
+}
+
+function isErrorObject(value: unknown): value is ErrorObject {
+  return isRecord(value)
+}
+
+export function propertyAwareToRaw<T>(propertyAwareObject: T): T {
   if (Array.isArray(propertyAwareObject)) {
     return propertyAwareObject.map((item) => propertyAwareToRaw(item)) as T
   }
 
-  // Wenn es kein Objekt ist oder null/undefined, direkt zurückgeben
-  if (!propertyAwareObject || typeof propertyAwareObject !== 'object') {
-    return propertyAwareObject as T
+  if (!isRecord(propertyAwareObject)) {
+    return propertyAwareObject
   }
 
-  const result: any = {}
+  const result: Record<string, unknown> = {}
+  const record = propertyAwareObject
 
-  for (const key in propertyAwareObject) {
-    // Überspringen von prototyp-eigenschaften oder speziellen Eigenschaften
-    if (!Object.prototype.hasOwnProperty.call(propertyAwareObject, key) || key.startsWith('_')) {
+  for (const key in record) {
+    if (!Object.prototype.hasOwnProperty.call(record, key) || key.startsWith('_')) {
       continue
     }
 
-    // Prüfen, ob die Eigenschaft ein model.value-Objekt hat
-    if (propertyAwareObject[key]?.model?.value !== undefined) {
-      result[key] = propertyAwareObject[key].model.value
-    } else if (propertyAwareObject[key] && typeof propertyAwareObject[key] === 'object') {
-      // Rekursiv für verschachtelte Objekte oder Arrays
-      result[key] = propertyAwareToRaw(propertyAwareObject[key])
-    } else {
-      // Fallback für den Fall, dass es sich nicht um ein property-aware Feld handelt
-      result[key] = propertyAwareObject[key]
+    const value = record[key]
+    const modelValue = isRecord(value) ? (value as { model?: { value?: unknown } }).model?.value : undefined
+
+    if (modelValue !== undefined) {
+      result[key] = modelValue
+      continue
     }
+
+    if (value && typeof value === 'object') {
+      result[key] = propertyAwareToRaw(value)
+      continue
+    }
+
+    result[key] = value
   }
 
   return result as T
 }
 
 /** Helper: shallow-merge source object into target. */
-function shallowMerge(target: any, source: any): any {
+function shallowMerge<T extends object, U extends object>(target: T, source: U): T & U {
   Object.assign(target, source)
-  return target
+  return target as T & U
 }
 
 /** Helper: if both values are arrays, update each element if possible, otherwise replace. */
-function deepMergeArrays(target: any[], source: any[]): any[] {
+function deepMergeArrays<T>(target: T[], source: T[]): T[] {
   if (target.length !== source.length) {
     return source
   }
   return target.map((t, i) => {
     const s = source[i]
+    if (s === undefined) {
+      return t
+    }
     if (t && typeof t === 'object' && s && typeof s === 'object') {
       return shallowMerge({ ...t }, s)
     }
@@ -70,18 +121,20 @@ function restorePropertyAwareArrays<FormBody>(defaults: FormBody, state: FormBod
   for (const key in defaults) {
     const defVal = defaults[key]
     if (defVal instanceof PropertyAwareArray) {
-      // If state[key] is not an instance, assume it's a plain array and rewrap it.
       if (!(state[key] instanceof PropertyAwareArray)) {
-        state[key] = new PropertyAwareArray(Array.isArray(state[key]) ? (state[key] as any) : []) as any
+        const values = Array.isArray(state[key]) ? Array.from(state[key]) : []
+        state[key] = new PropertyAwareArray(values) as FormBody[typeof key]
       }
     }
   }
 }
 
-function propertyAwareDeepEqual(a: any, b: any): boolean {
-  // A helper that returns the "inner" value if it looks like a PropertyAwareArray.
-  const getInner = (val: any) => {
-    // If val is an instance of PropertyAwareArray, it's already an array
+/**
+ * Compare values while treating PropertyAwareArray as its underlying array.
+ * This avoids false negatives when comparing persisted state to defaults.
+ */
+function propertyAwareDeepEqual<T>(a: T, b: T): boolean {
+  const getInner = (val: unknown) => {
     if (val instanceof PropertyAwareArray) {
       return val
     }
@@ -91,7 +144,6 @@ function propertyAwareDeepEqual(a: any, b: any): boolean {
   return isEqualWith(a, b, (aValue, bValue) => {
     const normA = getInner(aValue)
     const normB = getInner(bValue)
-    // If either normalization changed the value, compare the normalized ones.
     if (normA !== aValue || normB !== bValue) {
       return isEqual(normA, normB)
     }
@@ -103,17 +155,17 @@ function propertyAwareDeepEqual(a: any, b: any): boolean {
  * A generic base class for forms.
  *
  * @template RequestBody - The final payload shape (what is sent to the server).
- * @template FormBody - The raw form data shape (before any mutators are applied).
+ * @template FormBody - The raw form data shape (before mutators are applied).
  *
  * (We assume that for every key in RequestBody there is a corresponding key in FormBody.)
  */
 export abstract class BaseForm<RequestBody extends object, FormBody extends object> {
   public readonly state: FormBody
-  private readonly dirty: Record<keyof FormBody, boolean | any[]>
+  private readonly dirty: DirtyMap<FormBody>
   private readonly touched: Record<keyof FormBody, boolean>
   private readonly original: FormBody
   private readonly _model: { [K in keyof FormBody]: ComputedRef<FormBody[K]> }
-  private _errors: any = reactive({})
+  private _errors: ErrorBag = reactive<ErrorBag>({})
   private _hasErrors: ComputedRef<boolean>
   protected append: string[] = []
   protected ignore: string[] = []
@@ -128,6 +180,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * The default is a NonPersistentDriver.
    * Child classes can override this method to return a different driver.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected getPersistenceDriver(_suffix: string | undefined): PersistenceDriver {
     return new NonPersistentDriver()
   }
@@ -136,7 +189,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * Helper: recursively computes the dirty state for a value based on the original.
    * For plain arrays we compare the entire array (a single flag), not each element.
    */
-  private computeDirtyState(current: any, original: any): any {
+  private computeDirtyState<T>(current: T, original: T): DirtyState {
     if (Array.isArray(current) && Array.isArray(original)) {
       return current.length !== original.length || !isEqual(current, original)
     } else if (current && typeof current === 'object' && original && typeof original === 'object') {
@@ -151,6 +204,79 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return !isEqual(current, original)
   }
 
+  private initDirtyTouched(defaults: FormBody): {
+    dirty: DirtyMap<FormBody>
+    touched: Record<keyof FormBody, boolean>
+  } {
+    const initDirty: Partial<DirtyMap<FormBody>> = {}
+    const initTouched: Partial<Record<keyof FormBody, boolean>> = {}
+
+    for (const key in defaults) {
+      const value = defaults[key]
+      if (value instanceof PropertyAwareArray) {
+        initDirty[key as keyof FormBody] = Array.from(value).map((item) => {
+          if (item && typeof item === 'object') {
+            const obj: Record<string, boolean> = {}
+            for (const k in item) {
+              if (Object.prototype.hasOwnProperty.call(item, k)) {
+                obj[k] = false
+              }
+            }
+            return obj
+          }
+          return false
+        })
+      } else {
+        initDirty[key as keyof FormBody] = false
+      }
+
+      initTouched[key as keyof FormBody] = false
+    }
+
+    return {
+      dirty: reactive(initDirty) as DirtyMap<FormBody>,
+      touched: reactive(initTouched) as Record<keyof FormBody, boolean>
+    }
+  }
+
+  private replacePropertyAwareArray<K extends keyof FormBody>(key: K, values: Array<ArrayItem<FormBody[K]>>): void {
+    const current = this.state[key]
+    if (current instanceof PropertyAwareArray) {
+      current.length = 0
+      values.forEach((item) => current.push(item))
+      return
+    }
+
+    this.state[key] = new PropertyAwareArray(values) as FormBody[K]
+  }
+
+  private persistState(driver?: PersistenceDriver): void {
+    if (this.options?.persist === false) {
+      return
+    }
+
+    const persistDriver = driver ?? this.getPersistenceDriver(this.options?.persistSuffix)
+    persistDriver.set(this.constructor.name, {
+      state: toRaw(this.state),
+      original: toRaw(this.original),
+      dirty: toRaw(this.dirty),
+      touched: toRaw(this.touched)
+    } as PersistedForm<FormBody>)
+  }
+
+  private markFieldUpdated(key: keyof FormBody, driver?: PersistenceDriver): void {
+    this.touched[key] = true
+    this.validateField(key)
+    this.validateDependentFields(key)
+    this.persistState(driver)
+  }
+
+  private updateField<K extends keyof FormBody>(key: K, value: FormBody[K], driver?: PersistenceDriver): void {
+    this.state[key] = value
+    this.dirty[key] = this.computeDirtyState(value, this.original[key])
+    this.markFieldUpdated(key, driver)
+  }
+
   /**
    * Build a map of field dependencies based on the rules
    * This identifies which fields need to be revalidated when another field changes
@@ -161,9 +287,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         const fieldRules = this.rules[field as keyof FormBody]?.rules || []
 
         for (const rule of fieldRules) {
-          // Process normal dependencies from dependsOn array
           for (const dependencyField of rule.dependsOn) {
-            // Add this field as dependent on dependencyField
             if (!this.fieldDependencies.has(dependencyField as keyof FormBody)) {
               this.fieldDependencies.set(dependencyField as keyof FormBody, new Set())
             }
@@ -171,18 +295,14 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             this.fieldDependencies.get(dependencyField as keyof FormBody)?.add(field as keyof FormBody)
           }
 
-          // Process bidirectional dependencies if rule implements BidirectionalRule
-          if ('getBidirectionalFields' in rule && typeof (rule as any).getBidirectionalFields === 'function') {
-            const bidirectionalRule = rule as unknown as BidirectionalRule
-            const bidirectionalFields = bidirectionalRule.getBidirectionalFields()
-
+          const bidirectionalFields = rule.getBidirectionalFields?.()
+          if (bidirectionalFields && bidirectionalFields.length > 0) {
             for (const bidirectionalField of bidirectionalFields) {
-              // Add bidirectional dependency from this field to the other field
               if (!this.fieldDependencies.has(field as keyof FormBody)) {
                 this.fieldDependencies.set(field as keyof FormBody, new Set())
               }
 
-              this.fieldDependencies.get(field as keyof FormBody)?.add(bidirectionalField as unknown as keyof FormBody)
+              this.fieldDependencies.get(field as keyof FormBody)?.add(bidirectionalField)
             }
           }
         }
@@ -199,7 +319,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     if (dependentFields) {
       const fieldsToValidate = new Set<keyof FormBody>(dependentFields)
 
-      // For bidirectional dependencies
       for (const field of dependentFields) {
         const fieldDeps = this.fieldDependencies.get(field)
         if (fieldDeps && fieldDeps.has(changedField)) {
@@ -208,7 +327,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         }
       }
 
-      // Validate dependent fields
       for (const field of fieldsToValidate) {
         this.validateField(field, {
           isDependentChange: true,
@@ -231,144 +349,56 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       if (persisted && propertyAwareDeepEqual(defaults, persisted.original)) {
         initialData = persisted.state
         this.original = cloneDeep(persisted.original)
-        this.dirty = reactive(persisted.dirty) as Record<keyof FormBody, boolean | any[]>
+        this.dirty = reactive(persisted.dirty) as DirtyMap<FormBody>
         this.touched = reactive(persisted.touched || {}) as Record<keyof FormBody, boolean>
-        // Rewrap persisted values that were originally PropertyAwareArrays:
         restorePropertyAwareArrays(defaults, initialData)
         restorePropertyAwareArrays(defaults, this.original)
       } else {
         console.log('Discarding persisted data for ' + this.constructor.name + " because it doesn't match the defaults.")
         initialData = defaults
         this.original = cloneDeep(defaults)
-        const initDirty: Partial<Record<keyof FormBody, boolean | any[]>> = {}
-        const initTouched: Partial<Record<keyof FormBody, boolean>> = {}
-        for (const key in defaults) {
-          const value = defaults[key]
-          // Initialize dirty state
-          if (value instanceof PropertyAwareArray) {
-            initDirty[key as keyof FormBody] = ([...value] as any[]).map((item) => {
-              if (item && typeof item === 'object') {
-                const obj: Record<string, boolean> = {}
-                for (const k in item) {
-                  if (Object.prototype.hasOwnProperty.call(item, k)) {
-                    obj[k] = false
-                  }
-                }
-                return obj
-              }
-              return false
-            })
-          } else {
-            initDirty[key as keyof FormBody] = false
-          }
-
-          // Initialize touched state
-          initTouched[key as keyof FormBody] = false
-        }
-        this.dirty = reactive(initDirty) as Record<keyof FormBody, boolean | any[]>
-        this.touched = reactive(initTouched) as Record<keyof FormBody, boolean>
+        const init = this.initDirtyTouched(defaults)
+        this.dirty = init.dirty
+        this.touched = init.touched
         driver.remove(this.constructor.name)
       }
     } else {
       initialData = defaults
       this.original = cloneDeep(defaults)
-      const initDirty: Partial<Record<keyof FormBody, boolean | any[]>> = {}
-      const initTouched: Partial<Record<keyof FormBody, boolean>> = {}
-      for (const key in defaults) {
-        const value = defaults[key]
-        // Initialize dirty state
-        if (value instanceof PropertyAwareArray) {
-          initDirty[key as keyof FormBody] = ([...value] as any[]).map((item) => {
-            if (item && typeof item === 'object') {
-              const obj: Record<string, boolean> = {}
-              for (const k in item) {
-                if (Object.prototype.hasOwnProperty.call(item, k)) {
-                  obj[k] = false
-                }
-              }
-              return obj
-            }
-            return false
-          })
-        } else {
-          initDirty[key as keyof FormBody] = false
-        }
-
-        // Initialize touched state
-        initTouched[key as keyof FormBody] = false
-      }
-      this.dirty = reactive(initDirty) as Record<keyof FormBody, boolean | any[]>
-      this.touched = reactive(initTouched) as Record<keyof FormBody, boolean>
+      const init = this.initDirtyTouched(defaults)
+      this.dirty = init.dirty
+      this.touched = init.touched
     }
 
     this.rules = this.defineRules()
 
-    // Build the field dependencies map before creating computed properties
     this.buildFieldDependencies()
 
     this.state = reactive(initialData) as FormBody
     this._model = {} as { [K in keyof FormBody]: ComputedRef<FormBody[K]> }
 
-    // Create computed models.
     for (const key in this.state) {
       const value = this.state[key]
       if (value instanceof PropertyAwareArray) {
         this._model[key as keyof FormBody] = computed({
           get: () => this.state[key],
-          set: (newVal: any) => {
-            const arr = this.state[key] as PropertyAwareArray
-            // Leere das Array und fülle es neu
-            arr.length = 0
-            if (Array.isArray(newVal)) {
-              newVal.forEach((item) => arr.push(item))
-            }
-            this.dirty[key as keyof FormBody] = (newVal as any[]).map(() => false)
-            this.touched[key as keyof FormBody] = true
-
-            // Validate this field
-            this.validateField(key as keyof FormBody)
-
-            // Also validate any fields that depend on this field
-            this.validateDependentFields(key as keyof FormBody)
-
-            if (persist) {
-              driver.set(this.constructor.name, {
-                state: toRaw(this.state),
-                original: toRaw(this.original),
-                dirty: toRaw(this.dirty),
-                touched: toRaw(this.touched)
-              } as PersistedForm<FormBody>)
-            }
+          set: (newVal: PropertyAwareInput<FormBody[typeof key]>) => {
+            const next = Array.isArray(newVal) ? Array.from(newVal) : []
+            this.replacePropertyAwareArray(key as keyof FormBody, next)
+            this.dirty[key as keyof FormBody] = next.map(() => false)
+            this.markFieldUpdated(key as keyof FormBody, driver)
           }
         })
       } else {
         this._model[key as keyof FormBody] = computed({
           get: () => this.state[key],
           set: (value: FormBody[typeof key]) => {
-            this.state[key] = value
-            this.dirty[key as keyof FormBody] = this.computeDirtyState(value, this.original[key])
-            this.touched[key as keyof FormBody] = true
-
-            // Validate this field
-            this.validateField(key as keyof FormBody)
-
-            // Also validate any fields that depend on this field
-            this.validateDependentFields(key as keyof FormBody)
-
-            if (persist) {
-              driver.set(this.constructor.name, {
-                state: toRaw(this.state),
-                original: toRaw(this.original),
-                dirty: toRaw(this.dirty),
-                touched: toRaw(this.touched)
-              } as PersistedForm<FormBody>)
-            }
+            this.updateField(key as keyof FormBody, value, driver)
           }
         })
       }
     }
 
-    // Add a deep watch for plain arrays to update the dirty state if in-place changes occur.
     for (const key in this.state) {
       const value = this.state[key]
       if (Array.isArray(value) && !(value instanceof PropertyAwareArray)) {
@@ -383,30 +413,23 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     }
 
-    // Create computed property for checking errors
     this._hasErrors = computed(() => {
-      // Check if any field has errors
       for (const field in this._errors) {
         if (Object.prototype.hasOwnProperty.call(this._errors, field)) {
           const fieldErrors = this._errors[field]
 
-          // Handle string array errors
           if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
             return true
           }
 
-          // Handle nested array errors
           if (fieldErrors && typeof fieldErrors === 'object') {
-            // For arrays of objects with errors
             if (Array.isArray(fieldErrors)) {
               for (const item of fieldErrors) {
                 if (item && typeof item === 'object' && Object.keys(item).length > 0) {
                   return true
                 }
               }
-            }
-            // For plain objects with errors
-            else if (Object.keys(fieldErrors).length > 0) {
+            } else if (Object.keys(fieldErrors).length > 0) {
               return true
             }
           }
@@ -419,14 +442,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     if (persist) {
       watch(
         () => this.state,
-        () => {
-          driver.set(this.constructor.name, {
-            state: toRaw(this.state),
-            original: toRaw(this.original),
-            dirty: toRaw(this.dirty),
-            touched: toRaw(this.touched)
-          } as PersistedForm<FormBody>)
-        },
+        () => this.persistState(driver),
         { deep: true, immediate: true }
       )
     }
@@ -438,14 +454,160 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return {}
   }
 
-  public fillErrors<ErrorInterface>(errorsData: ErrorInterface): void {
+  private clearErrors(): void {
     for (const key in this._errors) {
       delete this._errors[key]
     }
+  }
+
+  private getOrCreateErrorArray(key: string): ErrorArray {
+    const existing = this._errors[key]
+    if (isErrorArray(existing)) {
+      return existing
+    }
+
+    const next: ErrorArray = []
+    this._errors[key] = next
+    return next
+  }
+
+  private getOrCreateErrorObject(errors: ErrorArray, index: number): ErrorObject {
+    const existing = errors[index]
+    if (isErrorObject(existing)) {
+      return existing
+    }
+
+    const next: ErrorObject = {}
+    errors[index] = next
+    return next
+  }
+
+  private getFieldErrors(field: string): ErrorMessages {
+    const errors = this._errors[field]
+    return isErrorMessages(errors) ? errors : []
+  }
+
+  private getOrCreateFieldErrors(field: string): ErrorMessages {
+    const existing = this._errors[field]
+    if (isErrorMessages(existing)) {
+      return existing
+    }
+
+    const next: ErrorMessages = []
+    this._errors[field] = next
+    return next
+  }
+
+  private getArrayItemErrors(field: string, index: number): ErrorObject | undefined {
+    const errors = this._errors[field]
+    if (!isErrorArray(errors)) {
+      return undefined
+    }
+    const item = errors[index]
+    return isErrorObject(item) ? item : undefined
+  }
+
+  private getArrayItemFieldErrors(field: string, index: number, innerKey: string): ErrorMessages {
+    const itemErrors = this.getArrayItemErrors(field, index)
+    if (!itemErrors) {
+      return []
+    }
+
+    const fieldErrors = itemErrors[innerKey]
+    if (isErrorMessages(fieldErrors)) {
+      return fieldErrors
+    }
+
+    if (isErrorObject(fieldErrors)) {
+      const nestedErrors = fieldErrors['']
+      return isErrorMessages(nestedErrors) ? nestedErrors : []
+    }
+
+    return []
+  }
+
+  private getArrayItemErrorMessages(field: string, index: number): ErrorMessages {
+    const errors = this._errors[field]
+    if (!Array.isArray(errors)) {
+      return []
+    }
+    const item = errors[index]
+    if (isErrorMessages(item)) {
+      return item
+    }
+    if (isErrorObject(item)) {
+      const nestedErrors = item['']
+      return isErrorMessages(nestedErrors) ? nestedErrors : []
+    }
+    return []
+  }
+
+  private setArrayDirty(field: keyof FormBody, index: number, value: DirtyState): void {
+    const dirtyState = this.dirty[field]
+    if (Array.isArray(dirtyState)) {
+      dirtyState[index] = this.normalizeItemDirtyState(value)
+    }
+  }
+
+  /**
+   * Collapse nested array dirty states into a single boolean/object for array entries.
+   */
+  private normalizeItemDirtyState(value: DirtyState): boolean | DirtyObject {
+    if (!Array.isArray(value)) {
+      return value
+    }
+
+    return value.some((entry) => {
+      if (typeof entry === 'boolean') {
+        return entry
+      }
+      if (isRecord(entry)) {
+        return Object.values(entry).some((item) => item === true)
+      }
+      return false
+    })
+  }
+
+  private getArrayItemDirty(field: keyof FormBody, index: number, innerKey: string): boolean {
+    const dirtyState = this.dirty[field]
+    if (!Array.isArray(dirtyState)) {
+      return false
+    }
+
+    const entry = dirtyState[index]
+    if (typeof entry === 'boolean') {
+      return entry
+    }
+
+    if (isRecord(entry)) {
+      return entry[innerKey] === true
+    }
+
+    return false
+  }
+
+  private getArrayItemDirtyValue(field: keyof FormBody, index: number): boolean {
+    const dirtyState = this.dirty[field]
+    if (!Array.isArray(dirtyState)) {
+      return false
+    }
+
+    const entry = dirtyState[index]
+    return typeof entry === 'boolean' ? entry : false
+  }
+
+  /**
+   * Map server-side errors (including dot-notation paths) into the form error bag.
+   */
+  public fillErrors<ErrorInterface extends Record<string, FieldErrors>>(errorsData: ErrorInterface): void {
+    this.clearErrors()
 
     for (const serverKey in errorsData) {
       if (Object.prototype.hasOwnProperty.call(errorsData, serverKey)) {
         const errorMessage = errorsData[serverKey]
+        if (errorMessage === undefined) {
+          continue
+        }
 
         let targetKeys: string[] = [serverKey]
 
@@ -457,24 +619,23 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         for (const targetKey of targetKeys) {
           const parts = targetKey.split('.')
           if (parts.length > 1) {
-            const topKey = parts[0]
-            // @ts-ignore index could be NaN if part is not a number
-            const index = parseInt(parts[1], 10)
+            const topKey = parts[0] ?? ''
+            const indexPart = parts[1] ?? ''
+            const index = Number.parseInt(indexPart, 10)
+            if (!topKey || !Number.isFinite(index)) {
+              this._errors[targetKey] = errorMessage
+              continue
+            }
             const errorSubKey = parts.slice(2).join('.')
 
-            // @ts-ignore Dynamic property access
-            if (!this._errors[topKey]) {
-              // @ts-ignore Dynamic property access
-              this._errors[topKey] = []
-            }
-            // @ts-ignore Dynamic property access, index could be NaN
-            if (!this._errors[topKey][index]) {
-              // @ts-ignore Dynamic property access, index could be NaN
-              this._errors[topKey][index] = {}
-            }
+            const errors = this.getOrCreateErrorArray(topKey)
+            const errorObject = this.getOrCreateErrorObject(errors, index)
 
-            // @ts-ignore Dynamic property access, index could be NaN
-            this._errors[topKey][index][errorSubKey] = errorMessage
+            if (errorSubKey.length === 0) {
+              errorObject[''] = errorMessage
+            } else {
+              errorObject[errorSubKey] = errorMessage
+            }
           } else {
             this._errors[targetKey] = errorMessage
           }
@@ -491,12 +652,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   public touch(field: keyof FormBody): void {
     this.touched[field] = true
 
-    // Get field config to check if we should validate on touch
     const fieldConfig = this.rules[field]
     if (fieldConfig) {
       const mode = fieldConfig.options?.mode ?? ValidationMode.DEFAULT
 
-      // Validate if ON_TOUCH flag is set
       if (mode & ValidationMode.ON_TOUCH) {
         this.validateField(field, {
           isSubmitting: false,
@@ -505,15 +664,8 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     }
 
-    // Persist the touched state if persistence is enabled
     if (this.options?.persist !== false) {
-      const driver = this.getPersistenceDriver(this.options?.persistSuffix)
-      driver.set(this.constructor.name, {
-        state: toRaw(this.state),
-        original: toRaw(this.original),
-        dirty: toRaw(this.dirty),
-        touched: toRaw(this.touched)
-      } as PersistedForm<FormBody>)
+      this.persistState()
     }
   }
 
@@ -535,47 +687,34 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       isTouched?: boolean
     } = {}
   ): void {
-    // Clear existing errors for this field
-    this._errors[field] = []
+    const emptyErrors: ErrorMessages = []
+    const errorKey = String(field)
+    this._errors[errorKey] = emptyErrors
 
     const value = this.state[field]
 
-    // Get field rules and options
     const fieldConfig = this.rules[field]
     if (!fieldConfig?.rules || fieldConfig.rules.length === 0) {
       return // No rules to validate
     }
 
-    // Default to ON_DIRTY | ON_SUBMIT if no mode is specified
     const mode = fieldConfig.options?.mode ?? ValidationMode.DEFAULT
 
-    // Use the field's actual states if not provided in context
     const isDirty = context.isDirty !== undefined ? context.isDirty : this.isDirty(field)
     const isTouched = context.isTouched !== undefined ? context.isTouched : this.isTouched(field)
 
-    // Determine if we should validate based on the context and mode
     const shouldValidate =
-      // Force validation on submit if ON_SUBMIT flag is set
       (context.isSubmitting && mode & ValidationMode.ON_SUBMIT) ||
-      // Validate if field is dirty and ON_DIRTY flag is set
       (isDirty && mode & ValidationMode.ON_DIRTY) ||
-      // Validate if field is touched and ON_TOUCH flag is set
       (isTouched && mode & ValidationMode.ON_TOUCH) ||
-      // Validate instantly if INSTANTLY flag is set
       mode & ValidationMode.INSTANTLY ||
-      // Validate if a dependent field changed and ON_DEPENDENT_CHANGE flag is set
       (context.isDependentChange && mode & ValidationMode.ON_DEPENDENT_CHANGE)
 
     if (shouldValidate) {
-      // Run each validation rule, passing the entire form state
       for (const rule of fieldConfig.rules) {
         const isValid = rule.validate(value, this.state)
         if (!isValid) {
-          // If validation fails, add the error message
-          if (!this._errors[field]) {
-            this._errors[field] = []
-          }
-          this._errors[field].push(rule.getMessage())
+          this.getOrCreateFieldErrors(errorKey).push(rule.getMessage())
         }
       }
     }
@@ -584,23 +723,20 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   public validate(isSubmitting: boolean = false): boolean {
     let isValid = true
 
-    // Clear all errors
     for (const key in this._errors) {
       delete this._errors[key]
     }
 
-    // Validate each field with rules
     for (const field in this.rules) {
       if (Object.prototype.hasOwnProperty.call(this.rules, field)) {
-        // Validate with context, using field-specific states
         this.validateField(field as keyof FormBody, {
           isSubmitting,
           isDependentChange: false,
           isTouched: this.isTouched(field as keyof FormBody)
         })
 
-        // If there are errors, the form is invalid
-        if (this._errors[field] && this._errors[field].length > 0) {
+        const fieldErrors = this._errors[String(field)]
+        if (isErrorMessages(fieldErrors) && fieldErrors.length > 0) {
           isValid = false
         }
       }
@@ -611,50 +747,44 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
   public fillState(data: Partial<FormBody>): void {
     const driver = this.getPersistenceDriver(this.options?.persistSuffix)
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key) && key in this.state) {
-        const currentVal = this.state[key]
-        const newVal = data[key]
-        if (currentVal instanceof PropertyAwareArray) {
-          const arr = this.state[key] as PropertyAwareArray
-          // Leere das Array und fülle es neu
-          arr.length = 0
-
-          if (Array.isArray(newVal)) {
-            newVal.forEach((item) => arr.push(item))
-          } else if (newVal instanceof PropertyAwareArray) {
-            ;[...newVal].forEach((item) => arr.push(item))
-          }
-
-          this.dirty[key as keyof FormBody] = ([...arr] as any[]).map(() => false)
-          this.touched[key as keyof FormBody] = true
-        } else if (Array.isArray(newVal) && Array.isArray(currentVal)) {
-          if (newVal.length === currentVal.length) {
-            this.state[key] = deepMergeArrays(currentVal, newVal) as any
-          } else {
-            this.state[key] = newVal as any
-          }
-          this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key])
-          this.touched[key as keyof FormBody] = true
-        } else if (newVal && typeof newVal === 'object' && currentVal && typeof currentVal === 'object') {
-          this.state[key] = shallowMerge({ ...currentVal }, newVal)
-          this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key])
-          this.touched[key as keyof FormBody] = true
-        } else {
-          this.state[key] = newVal as any
-          this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key])
-          this.touched[key as keyof FormBody] = true
-        }
+    for (const key of Object.keys(data) as Array<keyof FormBody>) {
+      if (!Object.prototype.hasOwnProperty.call(data, key) || !(key in this.state)) {
+        continue
       }
-    }
-    driver.set(this.constructor.name, {
-      state: toRaw(this.state),
-      original: toRaw(this.original),
-      dirty: toRaw(this.dirty),
-      touched: toRaw(this.touched)
-    } as PersistedForm<FormBody>)
 
-    // Validate affected fields and their dependencies
+      const currentVal = this.state[key]
+      const newVal = data[key] as FormBody[typeof key] | undefined
+
+      if (currentVal instanceof PropertyAwareArray) {
+        const values = newVal instanceof PropertyAwareArray || Array.isArray(newVal) ? Array.from(newVal) : []
+        this.replacePropertyAwareArray(key, values)
+
+        this.dirty[key] = values.map(() => false)
+        this.touched[key] = true
+        continue
+      }
+
+      if (Array.isArray(newVal) && Array.isArray(currentVal)) {
+        const merged = newVal.length === currentVal.length ? deepMergeArrays(currentVal, newVal) : newVal
+        this.state[key] = merged as FormBody[typeof key]
+        this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
+        this.touched[key] = true
+        continue
+      }
+
+      if (isRecord(newVal) && isRecord(currentVal)) {
+        this.state[key] = shallowMerge({ ...currentVal }, newVal) as FormBody[typeof key]
+        this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
+        this.touched[key] = true
+        continue
+      }
+
+      this.state[key] = newVal as FormBody[typeof key]
+      this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
+      this.touched[key] = true
+    }
+    this.persistState(driver)
+
     for (const key in data) {
       if (Object.prototype.hasOwnProperty.call(data, key) && key in this.state) {
         this.validateField(key as keyof FormBody)
@@ -663,7 +793,17 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  private transformValue(value: any, parentKey?: string): any {
+  private getValueGetter(name: string): ((value: unknown) => unknown) | undefined {
+    const candidate = (this as Record<string, unknown>)[name]
+    return typeof candidate === 'function' ? (candidate as (value: unknown) => unknown) : undefined
+  }
+
+  private getNoArgGetter(name: string): (() => unknown) | undefined {
+    const candidate = (this as Record<string, unknown>)[name]
+    return typeof candidate === 'function' ? (candidate as () => unknown) : undefined
+  }
+
+  private transformValue(value: unknown, parentKey?: string): unknown {
     if (value instanceof Date) {
       return value
     }
@@ -674,22 +814,21 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       return [...value].map((item) => this.transformValue(item, parentKey))
     }
     if (Array.isArray(value)) {
-      // For plain arrays, you might want to map them too:
       return value.map((item) => this.transformValue(item, parentKey))
-    } else if (value && typeof value === 'object') {
-      const result: any = {}
+    } else if (isRecord(value)) {
+      const result: Record<string, unknown> = {}
       for (const prop in value) {
         if (parentKey) {
           const compositeMethod = 'get' + upperFirst(parentKey) + upperFirst(camelCase(prop))
-          if (typeof (this as any)[compositeMethod] === 'function') {
-            const transformed = (this as any)[compositeMethod](value[prop])
+          const getter = this.getValueGetter(compositeMethod)
+          if (getter) {
+            const transformed = getter(value[prop])
             if (transformed !== undefined) {
               result[prop] = transformed
             }
             continue
           }
         }
-        // Pass the parentKey along so that nested objects still use it.
         const transformed = this.transformValue(value[prop], parentKey)
         if (transformed !== undefined) {
           result[prop] = transformed
@@ -700,9 +839,12 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return value
   }
 
+  /**
+   * Build the request payload, applying field/composite/appended getters when present.
+   */
   public buildPayload(): RequestBody {
     const payload = {} as RequestBody
-    for (const key in this.state) {
+    for (const key of Object.keys(this.state) as Array<FormKey<FormBody> & RequestKey<RequestBody>>) {
       if (this.ignore.includes(key)) {
         continue
       }
@@ -710,16 +852,17 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       const value = this.state[key]
 
       const getterName = 'get' + upperFirst(camelCase(key))
-      const typedKey = key as unknown as keyof RequestBody
-      if (typeof (this as any)[getterName] === 'function') {
-        const transformed = (this as any)[getterName](value)
+      const typedKey = key
+      const getter = this.getValueGetter(getterName)
+      if (getter) {
+        const transformed = getter(value)
         if (transformed !== undefined) {
-          payload[typedKey] = transformed
+          payload[typedKey] = transformed as RequestBody[typeof typedKey]
         }
       } else {
         const transformed = this.transformValue(value, key)
         if (transformed !== undefined) {
-          payload[typedKey] = transformed
+          payload[typedKey] = transformed as RequestBody[typeof typedKey]
         }
       }
     }
@@ -731,10 +874,11 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
 
       const getterName = 'get' + upperFirst(camelCase(fieldName))
-      if (typeof (this as any)[getterName] === 'function') {
-        const transformed = (this as any)[getterName]()
+      const getter = this.getNoArgGetter(getterName)
+      if (getter) {
+        const transformed = getter()
         if (transformed !== undefined) {
-          payload[fieldName as keyof RequestBody] = transformed
+          payload[fieldName as keyof RequestBody] = transformed as RequestBody[keyof RequestBody]
         }
       } else {
         console.warn(`Getter method '${getterName}' not found for appended field '${fieldName}' in ${this.constructor.name}.`)
@@ -748,13 +892,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     const driver = this.getPersistenceDriver(this.options?.persistSuffix)
     for (const key in this.state) {
       if (this.state[key] instanceof PropertyAwareArray) {
-        const stateArr = this.state[key] as PropertyAwareArray
         const originalValue = this.original[key] as PropertyAwareArray
-
-        stateArr.length = 0
-        ;[...originalValue].forEach((item) => stateArr.push(cloneDeep(item)))
-
-        this.dirty[key as keyof FormBody] = ([...stateArr] as any[]).map(() => false)
+        const values = [...originalValue].map((item) => cloneDeep(item))
+        this.replacePropertyAwareArray(key as keyof FormBody, values)
+        this.dirty[key as keyof FormBody] = values.map(() => false)
         this.touched[key as keyof FormBody] = false
       } else if (Array.isArray(this.original[key])) {
         this.state[key] = cloneDeep(this.original[key])
@@ -769,29 +910,18 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     for (const key in this._errors) {
       delete this._errors[key]
     }
-    driver.set(this.constructor.name, {
-      state: toRaw(this.state),
-      original: toRaw(this.original),
-      dirty: toRaw(this.dirty),
-      touched: toRaw(this.touched)
-    } as PersistedForm<FormBody>)
+    this.persistState(driver)
 
-    // Revalidate the form after reset
     this.validate()
   }
 
-  protected addToArrayProperty(property: keyof FormBody, newElement: any): void {
+  protected addToArrayProperty<K extends keyof FormBody>(property: K, newElement: ArrayItem<FormBody[K]>): void {
     const driver = this.getPersistenceDriver(this.options?.persistSuffix)
     const arr = this.state[property]
     if (arr instanceof PropertyAwareArray) {
       arr.push(newElement)
       this.touched[property] = true
-      driver.set(this.constructor.name, {
-        state: toRaw(this.state),
-        original: toRaw(this.original),
-        dirty: toRaw(this.dirty),
-        touched: toRaw(this.touched)
-      } as PersistedForm<FormBody>)
+      this.persistState(driver)
 
       return
     }
@@ -803,124 +933,121 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     arr.push(newElement)
     this.dirty[property] = this.computeDirtyState(arr, this.original[property])
     this.touched[property] = true
-    driver.set(this.constructor.name, {
-      state: toRaw(this.state),
-      original: toRaw(this.original),
-      dirty: toRaw(this.dirty),
-      touched: toRaw(this.touched)
-    } as PersistedForm<FormBody>)
+    this.persistState(driver)
 
-    // Validate the array field after modification
     this.validateField(property)
     this.validateDependentFields(property)
   }
 
-  protected removeArrayItem(arrayIndex: string, filter: (item: any) => boolean): void {
-    // @ts-expect-error
+  protected removeArrayItem<K extends keyof FormBody>(arrayIndex: K, filter: (item: ArrayItem<FormBody[K]>) => boolean): void {
     const current = this.state[arrayIndex]
     if (current instanceof PropertyAwareArray) {
-      // Filter-Funktion auf PropertyAwareArray anwenden und Ergebnis zurückschreiben
       const filtered = [...current].filter(filter)
       current.length = 0
       filtered.forEach((item) => current.push(item))
     } else if (Array.isArray(current)) {
-      // @ts-expect-error
-      this.state[arrayIndex] = current.filter(filter)
+      this.state[arrayIndex] = current.filter(filter) as FormBody[K]
     }
 
-    // Mark the array as touched
-    this.touched[arrayIndex as keyof FormBody] = true
+    this.touched[arrayIndex] = true
 
-    // Validate the array field after modification
-    this.validateField(arrayIndex as keyof FormBody)
-    this.validateDependentFields(arrayIndex as keyof FormBody)
+    this.validateField(arrayIndex)
+    this.validateDependentFields(arrayIndex)
   }
 
-  protected resetArrayCounter(arrayIndex: string, counterIndex: string): void {
+  protected resetArrayCounter(arrayIndex: keyof FormBody, counterIndex: string): void {
     let count = 1
-    // @ts-expect-error
     const current = this.state[arrayIndex]
     if (current instanceof PropertyAwareArray) {
-      ;[...current].forEach((item: any): void => {
-        item[counterIndex] = count
-        count++
+      ;[...current].forEach((item): void => {
+        if (isRecord(item)) {
+          item[counterIndex] = count
+          count++
+        }
       })
     } else if (Array.isArray(current)) {
-      current.forEach((item: any): void => {
-        item[counterIndex] = count
-        count++
+      current.forEach((item): void => {
+        if (isRecord(item)) {
+          item[counterIndex] = count
+          count++
+        }
       })
     }
 
-    // Mark the array as touched
     this.touched[arrayIndex as keyof FormBody] = true
   }
 
-  public get properties(): { [K in keyof FormBody]: any } {
-    const props: any = {}
-    for (const key in this.state) {
+  public get properties(): FormProperties<FormBody> {
+    const props: Partial<FormProperties<FormBody>> = {}
+    for (const key of Object.keys(this.state) as Array<FormKey<FormBody>>) {
       const value = this.state[key]
       if (value instanceof PropertyAwareArray) {
-        props[key] = [...value].map((item, index) => {
-          const elementProps: any = {}
-          if (item && typeof item === 'object') {
-            for (const innerKey in item) {
+        const arrayProps = [...value].map((item, index) => {
+          if (isRecord(item)) {
+            const elementProps: Record<string, FieldProperty<unknown>> = {}
+            for (const innerKey of Object.keys(item)) {
               elementProps[innerKey] = {
                 model: computed({
-                  get: () => (this.state[key] as PropertyAwareArray)[index][innerKey],
+                  get: () => {
+                    const current = value[index]
+                    return isRecord(current) ? current[innerKey] : undefined
+                  },
                   set: (newVal) => {
-                    ;(this.state[key] as PropertyAwareArray)[index][innerKey] = newVal
-                    const updatedElement = (this.state[key] as PropertyAwareArray)[index]
+                    const current = value[index]
+                    if (isRecord(current)) {
+                      current[innerKey] = newVal
+                    }
+                    const updatedElement = value[index]
                     const originalElement = (this.original[key] as PropertyAwareArray)[index]
-                    ;(this.dirty[key] as any[])[index] = this.computeDirtyState(updatedElement, originalElement)
+                    this.setArrayDirty(key, index, this.computeDirtyState(updatedElement, originalElement))
                     this.touched[key] = true
 
-                    // Validate after changing array items
-                    this.validateField(key as keyof FormBody)
-                    this.validateDependentFields(key as keyof FormBody)
+                    this.validateField(key)
+                    this.validateDependentFields(key)
                   }
                 }),
-                errors: (this._errors[key] && this._errors[key][index] && this._errors[key][index][innerKey]) || [],
-                dirty:
-                  Array.isArray(this.dirty[key]) && this.dirty[key][index] && typeof (this.dirty[key] as any[])[index] === 'object'
-                    ? (this.dirty[key] as any[])[index][innerKey]
-                    : false,
+                errors: this.getArrayItemFieldErrors(key, index, innerKey),
+                dirty: this.getArrayItemDirty(key, index, innerKey),
                 touched: this.touched[key] || false
               }
             }
-          } else {
-            elementProps.value = {
+            return elementProps
+          }
+
+          return {
+            value: {
               model: computed({
-                get: () => (this.state[key] as PropertyAwareArray)[index],
+                get: () => value[index],
                 set: (newVal) => {
-                  ;(this.state[key] as PropertyAwareArray)[index] = newVal
-                  const updatedValue = (this.state[key] as PropertyAwareArray)[index]
+                  value[index] = newVal as ArrayItem<FormBody[typeof key]>
+                  const updatedValue = value[index]
                   const originalValue = (this.original[key] as PropertyAwareArray)[index]
-                  ;(this.dirty[key] as boolean[])[index] = !isEqual(updatedValue, originalValue)
+                  this.setArrayDirty(key, index, this.computeDirtyState(updatedValue, originalValue))
                   this.touched[key] = true
 
-                  // Validate after changing array items
-                  this.validateField(key as keyof FormBody)
-                  this.validateDependentFields(key as keyof FormBody)
+                  this.validateField(key)
+                  this.validateDependentFields(key)
                 }
               }),
-              errors: (this._errors[key] && this._errors[key][index]) || [],
-              dirty: Array.isArray(this.dirty[key]) ? (this.dirty[key] as boolean[])[index] : false,
+              errors: this.getArrayItemErrorMessages(key, index),
+              dirty: this.getArrayItemDirtyValue(key, index),
               touched: this.touched[key] || false
             }
           }
-          return elementProps
         })
-      } else {
-        props[key] = {
-          model: this._model[key],
-          errors: this._errors[key] || [],
-          dirty: this.dirty[key] || false,
-          touched: this.touched[key] || false
-        }
+
+        props[key] = arrayProps as FormProperties<FormBody>[typeof key]
+        continue
       }
+
+      props[key] = {
+        model: this._model[key],
+        errors: this.getFieldErrors(key),
+        dirty: this.dirty[key] || false,
+        touched: this.touched[key] || false
+      } as FormProperties<FormBody>[typeof key]
     }
-    return props
+    return props as FormProperties<FormBody>
   }
 
   /**
@@ -929,11 +1056,9 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * @returns boolean indicating if the form or specified field is dirty
    */
   public isDirty(field?: keyof FormBody): boolean {
-    // If a specific field is provided, check only that field
     if (field !== undefined) {
       const dirtyState = this.dirty[field]
 
-      // Handle different types of dirty state
       if (typeof dirtyState === 'boolean') {
         return dirtyState
       }
@@ -957,7 +1082,6 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       return false
     }
 
-    // Check all fields (original behavior)
     for (const key in this.dirty) {
       const dirtyState = this.dirty[key as keyof FormBody]
 
@@ -985,8 +1109,8 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   /**
-   * Returns whether the form has any validation errors
-   * @returns boolean indicating if the form has any errors
+   * Returns whether the form has validation errors
+   * @returns boolean indicating if the form has errors
    */
   public hasErrors(): boolean {
     return this._hasErrors.value
@@ -1004,16 +1128,13 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     const driver = this.getPersistenceDriver(this.options?.persistSuffix)
     const currentVal = this.state[key]
 
-    // Handle PropertyAwareArray
     if (currentVal instanceof PropertyAwareArray) {
       const arr = this.state[key] as PropertyAwareArray
       const originalArr = this.original[key] as PropertyAwareArray
 
-      // Clear arrays
       arr.length = 0
       originalArr.length = 0
 
-      // Fill both arrays with the new value
       if (Array.isArray(value)) {
         value.forEach((item) => {
           arr.push(cloneDeep(item))
@@ -1026,44 +1147,29 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         })
       }
 
-      // Reset dirty state for this array
-      this.dirty[key] = ([...arr] as any[]).map(() => false)
-      // Mark as touched
+      this.dirty[key] = Array.from(arr).map(() => false)
       this.touched[key] = true
-    }
-    // Handle regular arrays
-    else if (Array.isArray(currentVal)) {
+    } else if (Array.isArray(currentVal)) {
       this.state[key] = cloneDeep(value)
       this.original[key] = cloneDeep(value)
       this.dirty[key] = false
       this.touched[key] = true
-    }
-    // Handle objects
-    else if (typeof currentVal === 'object' && currentVal !== null) {
+    } else if (typeof currentVal === 'object' && currentVal !== null) {
       this.state[key] = cloneDeep(value)
       this.original[key] = cloneDeep(value)
       this.dirty[key] = false
       this.touched[key] = true
-    }
-    // Handle primitive values
-    else {
+    } else {
       this.state[key] = value
       this.original[key] = value
       this.dirty[key] = false
       this.touched[key] = true
     }
 
-    // Update persistence if enabled
     if (this.options?.persist !== false) {
-      driver.set(this.constructor.name, {
-        state: toRaw(this.state),
-        original: toRaw(this.original),
-        dirty: toRaw(this.dirty),
-        touched: toRaw(this.touched)
-      } as PersistedForm<FormBody>)
+      this.persistState(driver)
     }
 
-    // Validate the field and any dependent fields
     this.validateField(key)
     this.validateDependentFields(key)
   }

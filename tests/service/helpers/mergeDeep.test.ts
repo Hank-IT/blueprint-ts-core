@@ -1,4 +1,4 @@
-import { mergeDeep } from '../../../src/helpers'
+import { mergeDeep } from '../../../src/support/helpers'
 import { describe, it, expect } from 'vitest';
 
 describe('mergeDeep', () => {

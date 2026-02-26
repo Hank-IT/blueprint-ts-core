@@ -8,10 +8,10 @@ export interface StateOptions {
   persistSuffix?: string
 }
 
-// Generic type for change handlers
+/** Generic type for change handlers. */
 type ChangeHandler<T> = (val: T, oldVal: T) => void
 
-// Type for accessing nested properties with dot notation
+/** Type for accessing nested properties with dot notation. */
 type PathValue<T, P extends string> = P extends keyof T
   ? T[P]
   : P extends `${infer K}.${infer Rest}`
@@ -22,11 +22,26 @@ type PathValue<T, P extends string> = P extends keyof T
       : never
     : never
 
-// Helper type to get all possible paths in an object
+/** Helper type to get all possible paths in an object. */
 type PathsToStringProps<T> = T extends object ? { [K in keyof T]: K extends string ? K | `${K}.${PathsToStringProps<T[K]>}` : never }[keyof T] : never
 
-// Union type of all possible dot-notation paths in T
+/** Union type of all possible dot-notation paths in T. */
 type Path<T> = keyof T | PathsToStringProps<T>
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getNestedValue(root: unknown, pathParts: string[]): unknown {
+  let current = root
+  for (const part of pathParts) {
+    if (!isRecord(current)) {
+      return undefined
+    }
+    current = current[part]
+  }
+  return current
+}
 
 export abstract class State<T extends object> {
   private readonly properties: { [K in keyof T]: Ref<T[K]> }
@@ -37,6 +52,7 @@ export abstract class State<T extends object> {
   private _stateProxy: T | null = null
   private _watchStopFunctions: Map<string, () => void> = new Map()
   private _resetHandlers: Map<string, (() => void)[]> = new Map()
+  private _watchIdCounter = 0
 
   protected constructor(initial: T, options?: StateOptions) {
     this._initial = initial
@@ -45,7 +61,6 @@ export abstract class State<T extends object> {
     this._persistKey = className + (options?.persistSuffix ? `_${options.persistSuffix}` : '')
     this._driver = this.getPersistenceDriver()
 
-    // --- Robust persistence load: invalidate if schema changed ---
     let loaded: T | null = null
     if (this._persist) {
       loaded = this._driver.get<T>(this._persistKey)
@@ -54,36 +69,26 @@ export abstract class State<T extends object> {
         const loadedKeys = Object.keys(loaded).sort()
         const sameKeys = initialKeys.length === loadedKeys.length && initialKeys.every((k, i) => k === loadedKeys[i])
         if (!sameKeys) {
-          // Schema mismatch: remove stale/corrupt data, use fresh
           this._driver.remove(this._persistKey)
           loaded = null
         }
       }
     }
 
-    // Use the valid loaded state, or fallback to initial
     const base = loaded ?? initial
     this.properties = {} as { [K in keyof T]: Ref<T[K]> }
     const keys = Object.keys(base) as Array<keyof T>
 
     for (const k of keys) {
-      // Use Vue's reactive for objects and arrays
       let value = (base as T)[k]
-      if (typeof value === 'object' && value !== null) {
-        value = reactive(this.deepClone(value)) as T[typeof k]
-      }
+      value = this.wrapReactive(value)
 
       const _ref = ref(value) as Ref<T[typeof k]>
 
       this.properties[k] = computed({
         get: () => _ref.value,
         set: (val) => {
-          // Make objects and arrays reactive
-          if (typeof val === 'object' && val !== null) {
-            _ref.value = reactive(this.deepClone(val)) as T[typeof k]
-          } else {
-            _ref.value = val
-          }
+          _ref.value = this.wrapReactive(val)
 
           if (this._persist) {
             this._driver.set(this._persistKey, this.export())
@@ -101,6 +106,16 @@ export abstract class State<T extends object> {
     if (typeof value !== 'object') return value
 
     return JSON.parse(JSON.stringify(value)) as V
+  }
+
+  /**
+   * Ensure objects/arrays are cloned and wrapped in Vue reactivity.
+   */
+  private wrapReactive<V>(value: V): V {
+    if (value && typeof value === 'object') {
+      return reactive(this.deepClone(value)) as V
+    }
+    return value
   }
 
   /**
@@ -164,41 +179,33 @@ export abstract class State<T extends object> {
     handler: ChangeHandler<PathValue<T, P & string>> | ((changedPath: P, state: T) => void),
     options?: { debounce?: number; executeOnReset?: boolean }
   ): () => void {
-    // Keep track of all watchers for cleanup
     const stopFunctions: (() => void)[] = []
     const resetHandlers: (() => void)[] = []
 
-    // If paths is an array, register handlers for each path
     if (Array.isArray(paths)) {
       for (const path of paths) {
-        // For arrays, we expect the handler to have the signature (changedPath, state) => void
         const pathHandler = () => {
           ;(handler as (changedPath: P, state: T) => void)(path, this.export())
         }
 
-        // Store reset handler if needed
         if (options?.executeOnReset) {
           resetHandlers.push(pathHandler)
         }
 
-        // Register handler for this individual path
         const stop = this.setupWatcher(path as string, pathHandler, options)
         stopFunctions.push(stop)
       }
     } else {
       const pathHandler = handler as ChangeHandler<unknown>
 
-      // Store reset handler if needed
       if (options?.executeOnReset) {
         resetHandlers.push(() => pathHandler(undefined, undefined))
       }
 
-      // For single paths, register directly with the provided handler
       const stop = this.setupWatcher(paths as string, pathHandler, options)
       stopFunctions.push(stop)
     }
 
-    // Store reset handlers for later execution
     if (resetHandlers.length > 0) {
       const resetId = Math.random().toString(36)
       this._resetHandlers.set(resetId, resetHandlers)
@@ -208,7 +215,6 @@ export abstract class State<T extends object> {
       })
     }
 
-    // Return a function that stops all watchers
     return () => stopFunctions.forEach((stop) => stop())
   }
 
@@ -225,11 +231,9 @@ export abstract class State<T extends object> {
 
     const effectiveHandler = debouncedHandler || handler
 
-    // For top-level properties
     if (pathParts.length === 1 && path in this.properties) {
       const key = path as keyof T
 
-      // Set up watcher for this property
       const stopWatch = watch(
         () => this.properties[key].value,
         (newVal, oldVal) => {
@@ -240,8 +244,7 @@ export abstract class State<T extends object> {
         { deep: true }
       )
 
-      // Save stop function for cleanup
-      const watchId = `prop:${String(key)}`
+      const watchId = `watch:${this._watchIdCounter++}`
       this._watchStopFunctions.set(watchId, stopWatch)
 
       return () => {
@@ -252,24 +255,14 @@ export abstract class State<T extends object> {
       }
     }
 
-    // For nested properties
     const topLevelKey = pathParts[0] as keyof T
 
     if (topLevelKey in this.properties) {
-      // Create a nested property getter
       const getter = () => {
-        let obj = this.properties[topLevelKey].value
-
-        for (let i = 1; i < pathParts.length; i++) {
-          if (!obj || typeof obj !== 'object') return undefined
-          // @ts-ignore: obj is guaranteed to be an object at this point
-          obj = (obj as any)[pathParts[i]]
-        }
-
-        return obj
+        const root = this.properties[topLevelKey].value
+        return getNestedValue(root, pathParts.slice(1))
       }
 
-      // Set up watcher for this nested property
       const stopWatch = watch(
         getter,
         (newVal, oldVal) => {
@@ -280,8 +273,7 @@ export abstract class State<T extends object> {
         { deep: true }
       )
 
-      // Save stop function for cleanup
-      const watchId = `nested:${String(path)}`
+      const watchId = `watch:${this._watchIdCounter++}`
       this._watchStopFunctions.set(watchId, stopWatch)
 
       return () => {
@@ -292,7 +284,6 @@ export abstract class State<T extends object> {
       }
     }
 
-    // If path doesn't exist, return a no-op
     return () => {}
   }
 
@@ -363,7 +354,6 @@ export abstract class State<T extends object> {
   public reset(): void {
     this.import(this._initial)
 
-    // Execute reset handlers
     for (const handlers of this._resetHandlers.values()) {
       for (const handler of handlers) {
         handler()
@@ -379,14 +369,12 @@ export abstract class State<T extends object> {
    * Clean up all watchers when the state is no longer needed
    */
   public destroy(): void {
-    // Stop all watchers
     for (const stopFn of this._watchStopFunctions.values()) {
       stopFn()
     }
     this._watchStopFunctions.clear()
     this._resetHandlers.clear()
 
-    // Remove reference to proxy
     this._stateProxy = null
   }
 }

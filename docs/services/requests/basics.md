@@ -1,4 +1,4 @@
-# Defining Requests
+# Basics
 
 Each API endpoint is represented as a separate class that extends `BaseRequest`. This class specifies the HTTP Method,
 URL, and the expected request/response types.

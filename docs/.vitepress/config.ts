@@ -16,7 +16,13 @@ export default defineConfig({
         text: 'Services',
         collapsed: false,
         items: [
-          { text: 'Requests', link: '/services/requests' },
+          {
+            text: 'Requests',
+            items: [
+              { text: 'Basics', link: '/services/requests/basics' },
+              { text: 'Error Handling', link: '/services/requests/error-handling' }
+            ]
+          },
           //{ text: 'Pagination', link: '/services/pagination' },
           //{ text: 'Support', link: '/services/support' },
           //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },

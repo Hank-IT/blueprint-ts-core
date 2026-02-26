@@ -5,6 +5,7 @@ import { PlainTextResponse } from './responses/PlainTextResponse'
 import { BlobResponse } from './responses/BlobResponse'
 import { BaseRequest } from './BaseRequest'
 import { ErrorHandler } from './ErrorHandler'
+import { RequestErrorRouter } from './RequestErrorRouter'
 import { RequestEvents } from './RequestEvents.enum'
 import { RequestMethodEnum } from './RequestMethod.enum'
 import { JsonBodyFactory } from './factories/JsonBodyFactory'
@@ -29,6 +30,7 @@ export {
   PlainTextResponse,
   BaseRequest,
   ErrorHandler,
+  RequestErrorRouter,
   RequestEvents,
   RequestMethodEnum,
   ResponseException,

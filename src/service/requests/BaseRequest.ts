@@ -155,7 +155,7 @@ export abstract class BaseRequest<
           await handler.handle()
         }
 
-        console.error('HankIT-UI: Unknown error received.', error)
+        console.error('@blueprint-ts/core: Unknown error received.', error)
 
         throw error
       })

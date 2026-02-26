@@ -16,34 +16,4 @@ await scroller.toNextPage()
 
 ## Scroll Detection Helper
 
-To detect when the user has scrolled to the bottom, use the `isAtBottom` helper:
-
-```typescript
-import { isAtBottom } from '@blueprint-ts/core/helpers'
-
-const atBottom = isAtBottom(event.target.scrollHeight, event.target.scrollTop, event.target.clientHeight)
-```
-
-Example with a scroll container:
-
-```html
-<nav class="overflow-y-auto" @scroll="handleScroll">
-  <!-- content -->
-</nav>
-```
-
-```typescript
-import { isAtBottom } from '@blueprint-ts/core/helpers'
-
-function handleScroll(event: Event): void {
-    if (!(event.target instanceof Element)) {
-        return
-    }
-
-    const atBottom = isAtBottom(event.target.scrollHeight, event.target.scrollTop, event.target.clientHeight)
-
-    if (atBottom) {
-        void scroller.toNextPage()
-    }
-}
-```
+See the Support Helpers docs for `isAtBottom` usage.

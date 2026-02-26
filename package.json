@@ -15,7 +15,6 @@
     "./service/requests/exceptions": "./src/service/requests/exceptions/index.ts",
     "./service/laravel/requests": "./src/service/laravel/requests/index.ts",
     "./service/laravel/pagination": "./src/service/laravel/pagination/index.ts",
-    "./helpers": "./src/helpers.ts",
     "./vue": "./src/vue/index.ts",
     "./vue/forms": "./src/vue/forms/index.ts",
     "./vue/forms/validation": "./src/vue/forms/validation/index.ts",

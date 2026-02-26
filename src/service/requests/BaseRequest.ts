@@ -13,7 +13,7 @@ import { type BaseRequestContract, type EventHandlerCallback } from './contracts
 import { type HeadersContract } from './contracts/HeadersContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type ResponseContract } from './contracts/ResponseContract'
-import { mergeDeep } from '../../helpers'
+import { mergeDeep } from '../support/helpers'
 import { v4 as uuidv4 } from 'uuid'
 
 export abstract class BaseRequest<

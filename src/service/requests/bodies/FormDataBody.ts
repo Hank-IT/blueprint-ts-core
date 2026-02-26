@@ -1,6 +1,6 @@
 import { type BodyContract } from '../contracts/BodyContract'
 import { type HeadersContract } from '../contracts/HeadersContract'
-import { isObject } from '../../../helpers'
+import { isObject } from '../../support/helpers'
 
 export class FormDataBody<RequestBody> implements BodyContract {
   protected data: FormData

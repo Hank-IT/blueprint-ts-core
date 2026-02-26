@@ -77,3 +77,21 @@ Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastP
 
 `PaginationParamsContract` was removed from the Laravel pagination exports because it was unused. Define your own params
 interface in your app instead.
+
+## Helpers Moved to Support
+
+Helpers are now exported from `@blueprint-ts/core/service/support`. The `@blueprint-ts/core/helpers` export was removed.
+
+### How to Fix
+
+Replace:
+
+```typescript
+import { isAtBottom } from '@blueprint-ts/core/helpers'
+```
+
+with:
+
+```typescript
+import { isAtBottom } from '@blueprint-ts/core/service/support'
+```

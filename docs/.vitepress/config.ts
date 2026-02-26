@@ -41,6 +41,14 @@ export default defineConfig({
               { text: 'Updating Rows', link: '/services/pagination/updating-rows' }
             ]
           },
+          {
+            text: 'Support',
+            items: [
+              { text: 'Overview', link: '/services/support/' },
+              { text: 'Helpers', link: '/services/support/helpers' },
+              { text: 'DeferredPromise', link: '/services/support/deferred-promise' }
+            ]
+          },
           //{ text: 'Support', link: '/services/support' },
           //{ text: 'Persistence Drivers', link: '/services/persistence-drivers' },
         ]

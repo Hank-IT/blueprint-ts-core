@@ -13,7 +13,7 @@ import { type PaginateableRequestContract } from './contracts/PaginateableReques
 import { type PaginationResponseContract } from './contracts/PaginationResponseContract'
 import { type PaginationDataDriverContract } from './contracts/PaginationDataDriverContract'
 import { type StatePaginationDataDriverContract } from './contracts/StatePaginationDataDriverContract'
-import { getDisplayablePages } from '../../helpers'
+import { getDisplayablePages } from '../support/helpers'
 import { ArrayDriver } from './dataDrivers/ArrayDriver'
 import { type BaseViewDriverContract } from './contracts/BaseViewDriverContract'
 import { type ViewDriverContract } from './contracts/ViewDriverContract'

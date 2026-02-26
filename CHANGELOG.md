@@ -1,3 +1,11 @@
+## v4.0.0-beta.4 - 2026-02-26 (beta)
+
+# [4.0.0-beta.4](/compare/v4.0.0-beta.3...v4.0.0-beta.4) (2026-02-26)
+
+
+### Bug Fixes
+
+* Use WritableComputedRef for field models 3cdb7dc
 ## v4.0.0-beta.3 - 2026-02-26 (beta)
 
 # [4.0.0-beta.3](/compare/v4.0.0-beta.2...v4.0.0-beta.3) (2026-02-26)

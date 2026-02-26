@@ -1,5 +1,5 @@
 import { type Ref, ref, computed } from 'vue'
-import { type RequestLoaderContract } from '../../../service/requests/contracts/RequestLoaderContract'
+import { type RequestLoaderContract } from '../../../requests/contracts/RequestLoaderContract'
 
 export class VueRequestBatchLoader implements RequestLoaderContract<Ref<boolean>> {
   private inFlight: Ref<number> = ref(0)

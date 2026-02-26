@@ -3,7 +3,7 @@
 Use `StatePaginator` for cursor-based APIs that return a next-state token. It requires a base view driver factory:
 
 ```typescript
-import { StatePaginator, type BaseViewDriverFactoryContract } from '@blueprint-ts/core/service/pagination'
+import { StatePaginator, type BaseViewDriverFactoryContract } from '@blueprint-ts/core/pagination'
 
 class MyBaseViewDriverFactory implements BaseViewDriverFactoryContract {
     public make<ResourceInterface>() {
@@ -26,10 +26,10 @@ If you are using Vue, the library provides `VueBaseViewDriverFactory`.
 ## Example Driver
 
 ```typescript
-import { type StatePaginationDataDriverContract, StatePaginationDataDto } from '@blueprint-ts/core/service/pagination'
+import { type StatePaginationDataDriverContract, StatePaginationDataDto } from '@blueprint-ts/core/pagination'
 import { type MailListResource } from '@/types/MailListResource.ts'
 import { MailIndexRequest, type MailIndexRequestRequestParams } from '@/requests/MailIndexRequest.ts'
-import { RequestEvents } from '@blueprint-ts/core/service/requests'
+import { RequestEvents } from '@blueprint-ts/core/requests'
 
 export class MailPaginationDataDriver implements StatePaginationDataDriverContract<MailListResource[]> {
     public constructor(

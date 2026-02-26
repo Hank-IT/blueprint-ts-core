@@ -9,9 +9,9 @@
 
 <script setup lang="ts">
 import {GetProductsRequest} from "./GetProductsRequest";
-import {InfiniteScroller, RequestDriver, VuePaginationDriverFactory, Paginator} from '@hank-it/ui/service/pagination'
-import {VueLoaderDriverFactory, BaseRequest, FetchDriver} from '@hank-it/ui/service/requests'
-import {isAtBottom} from '@hank-it/ui/service/helpers'
+import {InfiniteScroller, RequestDriver, VuePaginationDriverFactory, Paginator} from '@hank-it/ui/pagination'
+import {VueLoaderDriverFactory, BaseRequest, FetchDriver} from '@hank-it/ui/requests'
+import {isAtBottom} from '@hank-it/ui/helpers'
 import { debounce } from 'lodash'
 
 function scroll(event) {

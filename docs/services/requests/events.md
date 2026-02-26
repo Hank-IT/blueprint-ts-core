@@ -11,7 +11,7 @@ Requests can emit lifecycle events via `BaseRequest.on(...)`.
 Use the `RequestEvents.LOADING` event to track request loading state:
 
 ```typescript
-import { RequestEvents } from '@blueprint-ts/core/service/requests'
+import { RequestEvents } from '@blueprint-ts/core/requests'
 
 const request = new ExpenseIndexRequest()
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { VuePaginationDriverFactory } from '../../../../src/service/pagination'
-import { VuePaginationDriver } from '../../../../src/service/pagination'
+import { VuePaginationDriverFactory } from '../../../../src/pagination'
+import { VuePaginationDriver } from '../../../../src/pagination'
 
 describe('VuePaginationDriverFactory', () => {
   it('should create an instance of VuePaginationDriver', () => {

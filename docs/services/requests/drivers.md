@@ -6,7 +6,7 @@ own by implementing `RequestDriverContract`.
 ## Default Fetch Driver
 
 ```typescript
-import { BaseRequest, FetchDriver } from '@blueprint-ts/core/service/requests'
+import { BaseRequest, FetchDriver } from '@blueprint-ts/core/requests'
 
 BaseRequest.setRequestDriver(new FetchDriver())
 ```
@@ -22,12 +22,12 @@ The `FetchDriver` supports:
 To implement your own driver, implement `RequestDriverContract` and return a `ResponseHandlerContract`:
 
 ```typescript
-import { type RequestDriverContract } from '@blueprint-ts/core/service/requests'
-import { type ResponseHandlerContract } from '@blueprint-ts/core/service/requests'
-import { type RequestMethodEnum } from '@blueprint-ts/core/service/requests'
-import { type HeadersContract } from '@blueprint-ts/core/service/requests'
-import { type BodyContract } from '@blueprint-ts/core/service/requests'
-import { type DriverConfigContract } from '@blueprint-ts/core/service/requests'
+import { type RequestDriverContract } from '@blueprint-ts/core/requests'
+import { type ResponseHandlerContract } from '@blueprint-ts/core/requests'
+import { type RequestMethodEnum } from '@blueprint-ts/core/requests'
+import { type HeadersContract } from '@blueprint-ts/core/requests'
+import { type BodyContract } from '@blueprint-ts/core/requests'
+import { type DriverConfigContract } from '@blueprint-ts/core/requests'
 
 class CustomDriver implements RequestDriverContract {
     public async send(

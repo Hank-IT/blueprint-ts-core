@@ -3,7 +3,7 @@
 Use `PageAwarePaginator` for classic page/size pagination. It requires a view driver factory:
 
 ```typescript
-import { PageAwarePaginator, ArrayDriver, type ViewDriverFactoryContract } from '@blueprint-ts/core/service/pagination'
+import { PageAwarePaginator, ArrayDriver, type ViewDriverFactoryContract } from '@blueprint-ts/core/pagination'
 
 class MyViewDriverFactory implements ViewDriverFactoryContract {
     public make<ResourceInterface>(pageNumber: number, pageSize: number) {

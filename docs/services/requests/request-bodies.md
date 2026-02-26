@@ -19,7 +19,7 @@ If you call `setBody(...)` without providing a body factory, the body is not sen
 Use `JsonBodyFactory` to send JSON and set `Content-Type: application/json`:
 
 ```typescript
-import { BaseRequest, JsonBodyFactory, RequestMethodEnum } from '@blueprint-ts/core/service/requests'
+import { BaseRequest, JsonBodyFactory, RequestMethodEnum } from '@blueprint-ts/core/requests'
 
 class CreateExpenseRequest extends BaseRequest<boolean, GenericResponseErrorInterface, ExpenseResource, JsonResponse<ExpenseResource>, CreateExpensePayload> {
     public method(): RequestMethodEnum {
@@ -47,7 +47,7 @@ If you are using the Laravel integration, `JsonBaseRequest` already configures t
 Use `FormDataFactory` for multipart requests (uploads, mixed fields):
 
 ```typescript
-import { FormDataFactory } from '@blueprint-ts/core/service/requests'
+import { FormDataFactory } from '@blueprint-ts/core/requests'
 
 public override getRequestBodyFactory() {
     return new FormDataFactory<FormPayload>()

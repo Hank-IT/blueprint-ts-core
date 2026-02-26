@@ -57,8 +57,8 @@ export default defineConfig({
         text: 'Laravel',
         collapsed: false,
         items: [
-          { text: 'Requests', link: '/services/laravel/requests' },
-          { text: 'Pagination', link: '/services/laravel/pagination' }
+          { text: 'Requests', link: '/laravel/requests' },
+          { text: 'Pagination', link: '/laravel/pagination' }
         ]
       },
       {

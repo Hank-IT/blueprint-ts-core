@@ -1,5 +1,5 @@
-import {BaseRequest, type Paginatable, JsonResponse } from '@hank-it/ui/service/requests'
-import type {PaginationResponseContract} from '@hank-it/ui/service/pagination'
+import {BaseRequest, type Paginatable, JsonResponse } from '@hank-it/ui/requests'
+import type {PaginationResponseContract} from '@hank-it/ui/pagination'
 
 export interface ProductResource {
     id: number

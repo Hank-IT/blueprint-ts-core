@@ -78,9 +78,35 @@ Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastP
 `PaginationParamsContract` was removed from the Laravel pagination exports because it was unused. Define your own params
 interface in your app instead.
 
+## Core Modules Moved out of `service/`
+
+Core (non-framework) modules moved from `@blueprint-ts/core/service/*` to `@blueprint-ts/core/*`.
+
+### How to Fix
+
+Replace:
+
+```typescript
+import { BaseRequest } from '@blueprint-ts/core/service/requests'
+import { PageAwarePaginator } from '@blueprint-ts/core/service/pagination'
+import { DeferredPromise } from '@blueprint-ts/core/service/support'
+import { BulkRequestSender } from '@blueprint-ts/core/service/bulkRequests'
+import { LocalStorageDriver } from '@blueprint-ts/core/service/persistenceDrivers'
+```
+
+with:
+
+```typescript
+import { BaseRequest } from '@blueprint-ts/core/requests'
+import { PageAwarePaginator } from '@blueprint-ts/core/pagination'
+import { DeferredPromise } from '@blueprint-ts/core/support'
+import { BulkRequestSender } from '@blueprint-ts/core/bulkRequests'
+import { LocalStorageDriver } from '@blueprint-ts/core/persistenceDrivers'
+```
+
 ## Helpers Moved to Support
 
-Helpers are now exported from `@blueprint-ts/core/service/support`. The `@blueprint-ts/core/helpers` export was removed.
+Helpers are now exported from `@blueprint-ts/core/support`. The `@blueprint-ts/core/helpers` export was removed.
 
 ### How to Fix
 
@@ -93,7 +119,7 @@ import { isAtBottom } from '@blueprint-ts/core/helpers'
 with:
 
 ```typescript
-import { isAtBottom } from '@blueprint-ts/core/service/support'
+import { isAtBottom } from '@blueprint-ts/core/support'
 ```
 
 ## Laravel Packages Moved

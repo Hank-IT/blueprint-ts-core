@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import {ref, computed} from 'vue'
-import {VueLoaderDriverFactory, BaseRequest, FetchDriver} from '@hank-it/ui/service/requests'
+import {VueLoaderDriverFactory, BaseRequest, FetchDriver} from '@hank-it/ui/requests'
 import DownloadFileRequest from './DownloadFileRequest'
 
 /* Booting */

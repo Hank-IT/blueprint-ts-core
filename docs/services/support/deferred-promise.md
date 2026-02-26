@@ -3,7 +3,7 @@
 `DeferredPromise` exposes a Promise along with `resolve`, `reject`, and a `state` property you can inspect.
 
 ```typescript
-import { DeferredPromise } from '@blueprint-ts/core/service/support'
+import { DeferredPromise } from '@blueprint-ts/core/support'
 
 const deferred = new DeferredPromise<string>()
 
@@ -35,7 +35,7 @@ Use a `DeferredPromise` to delay rendering of a Vue component until the slideove
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { DeferredPromise } from '@blueprint-ts/core/service/support'
+import { DeferredPromise } from '@blueprint-ts/core/support'
 
 const props = defineProps<{ resource?: Resource }>()
 const isOpen = defineModel<boolean>('isOpen', { default: false })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { FormDataBody } from '../../../src/service/requests/bodies/FormDataBody'
+import { FormDataBody } from '../../../src/requests/bodies/FormDataBody'
 
 describe('FormDataBody', () => {
   it('appends strings and files', () => {

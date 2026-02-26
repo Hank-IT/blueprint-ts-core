@@ -15,11 +15,11 @@ boot process by using the static `setRequestDriver` method.
 
 ### Using the Fetch Driver
 
-To set up the fetch driver, import `BaseRequest` and `FetchDriver` from '@blueprint-ts/core/service/requests' and initialize
+To set up the fetch driver, import `BaseRequest` and `FetchDriver` from '@blueprint-ts/core/requests' and initialize
 the driver as shown:
 
 ```typescript
-import { BaseRequest, FetchDriver } from '@blueprint-ts/core/service/requests'
+import { BaseRequest, FetchDriver } from '@blueprint-ts/core/requests'
 
 BaseRequest.setRequestDriver(new FetchDriver())
 ```
@@ -70,7 +70,7 @@ BaseRequest.setDefaultBaseUrl('https://example.com')
 The following example demonstrates how to define a GET request to the `/api/v1/expenses` endpoint:
 
 ```typescript
-import { BaseRequest, RequestMethodEnum, JsonResponse } from '@blueprint-ts/core/service/requests'
+import { BaseRequest, RequestMethodEnum, JsonResponse } from '@blueprint-ts/core/requests'
 
 export interface GenericResponseErrorInterface {
     message: string
@@ -141,7 +141,7 @@ import {
     RequestMethodEnum,
     JsonResponse,
     JsonBodyFactory
-} from '@blueprint-ts/core/service/requests'
+} from '@blueprint-ts/core/requests'
 
 export interface CreateExpensePayload {
     title: string

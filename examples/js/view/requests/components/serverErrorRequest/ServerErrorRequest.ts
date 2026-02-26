@@ -1,4 +1,4 @@
-import {BaseRequest, JsonResponse } from '@hank-it/ui/service/requests'
+import {BaseRequest, JsonResponse } from '@hank-it/ui/requests'
 
 export class GetProductsRequestResponse extends JsonResponse {}
 

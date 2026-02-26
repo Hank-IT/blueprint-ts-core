@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ErrorHandler } from '../../../src/service/requests'
+import { ErrorHandler } from '../../../src/requests'
 
 import {
   PageExpiredException,
@@ -9,7 +9,7 @@ import {
   ResponseException,
   NoResponseReceivedException,
   ServerErrorException
-} from '../../../src/service/requests/exceptions';
+} from '../../../src/requests/exceptions';
 
 describe('ErrorHandler', () => {
   it('should throw UnauthorizedException for status code 401', () => {

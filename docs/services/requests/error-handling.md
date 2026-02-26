@@ -45,7 +45,7 @@ import {
     ResponseException,
     ValidationException,
     UnauthorizedException
-} from '@blueprint-ts/core/service/requests/exceptions'
+} from '@blueprint-ts/core/requests/exceptions'
 
 try {
     await request.send()
@@ -68,12 +68,12 @@ try {
 If you prefer to avoid manual `instanceof` checks, use the fluent `RequestErrorRouter`:
 
 ```typescript
-import { RequestErrorRouter } from '@blueprint-ts/core/service/requests'
+import { RequestErrorRouter } from '@blueprint-ts/core/requests'
 import {
     ResponseException,
     ValidationException,
     UnauthorizedException
-} from '@blueprint-ts/core/service/requests/exceptions'
+} from '@blueprint-ts/core/requests/exceptions'
 
 try {
     await request.send()
@@ -109,7 +109,7 @@ Handlers run in the order they are registered. Register specific exceptions befo
 You can register a global handler that runs before the normal error mapping:
 
 ```typescript
-import { ErrorHandler } from '@blueprint-ts/core/service/requests'
+import { ErrorHandler } from '@blueprint-ts/core/requests'
 
 ErrorHandler.registerHandler((response) => {
     // Inspect response here.
@@ -122,8 +122,8 @@ Note: the handler only aborts when it explicitly returns `false`. Returning `tru
 Example: redirect to login on `401` responses:
 
 ```typescript
-import { ErrorHandler } from '@blueprint-ts/core/service/requests'
-import { type ResponseHandlerContract } from '@blueprint-ts/core/service/requests'
+import { ErrorHandler } from '@blueprint-ts/core/requests'
+import { type ResponseHandlerContract } from '@blueprint-ts/core/requests'
 
 ErrorHandler.registerHandler((response: ResponseHandlerContract) => {
     if (response.getStatusCode() !== 401) {

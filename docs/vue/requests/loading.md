@@ -6,7 +6,7 @@ use Vue refs to track loading state.
 ## Registering the Vue Loader Factory
 
 ```typescript
-import { BaseRequest } from '@blueprint-ts/core/service/requests'
+import { BaseRequest } from '@blueprint-ts/core/requests'
 import { VueRequestLoaderFactory } from '@blueprint-ts/core/vue/requests'
 
 BaseRequest.setRequestLoaderFactory(new VueRequestLoaderFactory())

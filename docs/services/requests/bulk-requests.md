@@ -12,7 +12,7 @@ import {
     BulkRequestSender,
     BulkRequestWrapper,
     BulkRequestEventEnum
-} from '@blueprint-ts/core/service/bulkRequests'
+} from '@blueprint-ts/core/bulkRequests'
 
 const requests = items.map((item) =>
     new BulkRequestWrapper(new DeleteRequest(item.id))

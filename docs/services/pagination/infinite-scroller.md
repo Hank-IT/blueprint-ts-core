@@ -3,7 +3,7 @@
 Use `InfiniteScroller` when you want to append pages to the existing list:
 
 ```typescript
-import { InfiniteScroller } from '@blueprint-ts/core/service/pagination'
+import { InfiniteScroller } from '@blueprint-ts/core/pagination'
 
 const scroller = new InfiniteScroller(dataDriver, 1, 10)
 

@@ -1,4 +1,4 @@
-import {BaseRequest, BlobResponse } from '@hank-it/ui/service/requests'
+import {BaseRequest, BlobResponse } from '@hank-it/ui/requests'
 
 export default class DownloadFileRequest extends BaseRequest {
     method() {

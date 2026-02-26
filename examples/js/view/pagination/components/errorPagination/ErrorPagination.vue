@@ -28,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import {BaseRequest, FetchDriver, VueLoaderDriverFactory} from "@hank-it/ui/service/requests"
-import {Paginator, RequestDriver, VuePaginationDriverFactory} from "@hank-it/ui/service/pagination";
-import {getDisplayablePages} from '@hank-it/ui/service/helpers'
+import {BaseRequest, FetchDriver, VueLoaderDriverFactory} from "@hank-it/ui/requests"
+import {Paginator, RequestDriver, VuePaginationDriverFactory} from "@hank-it/ui/pagination";
+import {getDisplayablePages} from '@hank-it/ui/helpers'
 import {GetProductsRequest} from "./GetProductsRequest";
 import {computed} from 'vue'
 

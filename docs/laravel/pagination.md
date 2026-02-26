@@ -12,7 +12,7 @@ paginator classes.
 import { PaginationJsonBaseRequest } from '@blueprint-ts/core/laravel/requests'
 import { PaginationResponse } from '@blueprint-ts/core/laravel/requests/responses'
 import { RequestDriver } from '@blueprint-ts/core/laravel/pagination'
-import { PageAwarePaginator } from '@blueprint-ts/core/service/pagination'
+import { PageAwarePaginator } from '@blueprint-ts/core/pagination'
 
 export interface UserListParams {
   search?: string

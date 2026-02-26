@@ -7,7 +7,7 @@ Requests return a response class that controls the `Accept` header and how the b
 Use `JsonResponse<T>` for JSON APIs. It sets `Accept: application/json` and parses the body with `response.json()`:
 
 ```typescript
-import { JsonResponse } from '@blueprint-ts/core/service/requests'
+import { JsonResponse } from '@blueprint-ts/core/requests'
 
 // In your request generic parameters:
 // JsonResponse<ExpenseIndexRequestResponseBody>
@@ -19,7 +19,7 @@ Use `PlainTextResponse` for endpoints that return plain text. It sets `Accept: t
 `response.text()`:
 
 ```typescript
-import { PlainTextResponse } from '@blueprint-ts/core/service/requests'
+import { PlainTextResponse } from '@blueprint-ts/core/requests'
 ```
 
 ## BlobResponse
@@ -28,7 +28,7 @@ Use `BlobResponse` for binary responses like files. It sets `Accept` to the prov
 `application/octet-stream`) and parses the body with `response.blob()`:
 
 ```typescript
-import { BlobResponse } from '@blueprint-ts/core/service/requests'
+import { BlobResponse } from '@blueprint-ts/core/requests'
 
 const response = new BlobResponse('application/pdf')
 ```

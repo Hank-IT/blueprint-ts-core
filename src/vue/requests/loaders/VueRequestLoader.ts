@@ -1,5 +1,5 @@
 import { type Ref, ref } from 'vue'
-import { type RequestLoaderContract } from '../../../service/requests/contracts/RequestLoaderContract'
+import { type RequestLoaderContract } from '../../../requests/contracts/RequestLoaderContract'
 
 export class VueRequestLoader implements RequestLoaderContract<Ref<boolean>> {
   protected loading: Ref<boolean>

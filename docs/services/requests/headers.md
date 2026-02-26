@@ -25,7 +25,7 @@ BaseRequest.setRequestDriver(new FetchDriver({
 Override `requestHeaders()` on a request to add headers per request:
 
 ```typescript
-import { type HeadersContract } from '@blueprint-ts/core/service/requests'
+import { type HeadersContract } from '@blueprint-ts/core/requests'
 
 public override requestHeaders(): HeadersContract {
     return {

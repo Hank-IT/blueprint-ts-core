@@ -5,7 +5,7 @@
 Detect whether a scroll container is at the bottom:
 
 ```typescript
-import { isAtBottom } from '@blueprint-ts/core/service/support'
+import { isAtBottom } from '@blueprint-ts/core/support'
 
 const atBottom = isAtBottom(scrollHeight, scrollTop, clientHeight)
 ```
@@ -19,7 +19,7 @@ Example with a scroll container:
 ```
 
 ```typescript
-import { isAtBottom } from '@blueprint-ts/core/service/support'
+import { isAtBottom } from '@blueprint-ts/core/support'
 
 function handleScroll(event: Event): void {
     if (!(event.target instanceof Element)) {
@@ -39,7 +39,7 @@ function handleScroll(event: Event): void {
 Read a cookie value by name:
 
 ```typescript
-import { getCookie } from '@blueprint-ts/core/service/support'
+import { getCookie } from '@blueprint-ts/core/support'
 
 const token = getCookie('XSRF-TOKEN')
 ```
@@ -49,7 +49,7 @@ const token = getCookie('XSRF-TOKEN')
 Check if a value is a non-array object:
 
 ```typescript
-import { isObject } from '@blueprint-ts/core/service/support'
+import { isObject } from '@blueprint-ts/core/support'
 
 if (isObject(value)) {
     // value is an object (not null, not an array)
@@ -61,7 +61,7 @@ if (isObject(value)) {
 Deep-merge plain objects:
 
 ```typescript
-import { mergeDeep } from '@blueprint-ts/core/service/support'
+import { mergeDeep } from '@blueprint-ts/core/support'
 
 const result = mergeDeep({}, defaults, overrides)
 ```
@@ -71,7 +71,7 @@ const result = mergeDeep({}, defaults, overrides)
 Generate a window of page numbers for pagination UI:
 
 ```typescript
-import { getDisplayablePages } from '@blueprint-ts/core/service/support'
+import { getDisplayablePages } from '@blueprint-ts/core/support'
 
 const pages = getDisplayablePages(currentPage, totalPages, displayPages)
 ```

@@ -1,6 +1,6 @@
 import { debounce } from 'lodash-es'
-import { type PersistenceDriver } from '../../service/persistenceDrivers'
-import { NonPersistentDriver } from '../../service/persistenceDrivers'
+import { type PersistenceDriver } from '../../persistenceDrivers'
+import { NonPersistentDriver } from '../../persistenceDrivers'
 import { computed, ref, type Ref, watch, reactive } from 'vue'
 
 export interface StateOptions {

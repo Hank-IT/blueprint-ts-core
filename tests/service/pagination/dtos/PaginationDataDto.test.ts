@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PaginationDataDto } from '../../../../src/service/pagination'
+import { PaginationDataDto } from '../../../../src/pagination'
 
 describe('PaginationDataDto', () => {
   interface MockResource {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VuePaginationDriver } from '../../../../src/service/pagination'
+import { VuePaginationDriver } from '../../../../src/pagination'
 
 describe('VuePaginationDriver', () => {
   it('should initialize with correct default values', () => {

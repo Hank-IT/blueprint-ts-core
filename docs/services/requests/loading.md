@@ -15,7 +15,7 @@ import {
     BaseRequest,
     type RequestLoaderContract,
     type RequestLoaderFactoryContract
-} from '@blueprint-ts/core/service/requests'
+} from '@blueprint-ts/core/requests'
 
 class BooleanLoader implements RequestLoaderContract<boolean> {
     private loading = false

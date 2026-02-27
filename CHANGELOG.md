@@ -1,3 +1,18 @@
+## v4.0.0-beta.6 - 2026-02-27 (beta)
+
+# [4.0.0-beta.6](/compare/v4.0.0-beta.5...v4.0.0-beta.6) (2026-02-27)
+
+
+### Bug Fixes
+
+*  bind BaseForm getters to preserve this 5e44296
+* Type propertyAwareToRaw properly 1fe2f28
+
+
+### Features
+
+* Make state protected readonly in BaseForm e6e2f81
+* Removed deprecated Paginator alias 7f07617
 ## v4.0.0-beta.5 - 2026-02-27 (beta)
 
 # [4.0.0-beta.5](/compare/v4.0.0-beta.4...v4.0.0-beta.5) (2026-02-27)

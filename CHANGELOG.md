@@ -1,3 +1,11 @@
+## v4.0.0-beta.7 - 2026-02-27 (beta)
+
+# [4.0.0-beta.7](/compare/v4.0.0-beta.6...v4.0.0-beta.7) (2026-02-27)
+
+
+### Bug Fixes
+
+* Make cause public in InvalidJsonException 3aab192
 ## v4.0.0-beta.6 - 2026-02-27 (beta)
 
 # [4.0.0-beta.6](/compare/v4.0.0-beta.5...v4.0.0-beta.6) (2026-02-27)

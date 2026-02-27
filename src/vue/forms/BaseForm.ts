@@ -804,12 +804,18 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
   private getValueGetter(name: string): ((value: unknown) => unknown) | undefined {
     const candidate = (this as Record<string, unknown>)[name]
-    return typeof candidate === 'function' ? (candidate as (value: unknown) => unknown) : undefined
+    if (typeof candidate !== 'function') {
+      return undefined
+    }
+    return (candidate as (value: unknown) => unknown).bind(this)
   }
 
   private getNoArgGetter(name: string): (() => unknown) | undefined {
     const candidate = (this as Record<string, unknown>)[name]
-    return typeof candidate === 'function' ? (candidate as () => unknown) : undefined
+    if (typeof candidate !== 'function') {
+      return undefined
+    }
+    return (candidate as () => unknown).bind(this)
   }
 
   private transformValue(value: unknown, parentKey?: string): unknown {

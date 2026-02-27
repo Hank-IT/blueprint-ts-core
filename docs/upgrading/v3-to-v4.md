@@ -169,3 +169,12 @@ with:
 ```typescript
 import { JsonBaseRequest } from '@blueprint-ts/core/laravel/requests'
 ```
+
+## BaseForm `state` is now protected
+
+`BaseForm.state` was public in previous versions, but it is now `protected readonly`. That means external consumers can no longer import form instances and access `form.state`. Subclasses can still read/write state internally, so any code that depended on reading it from outside the form must switch to supported accessors such as `form.properties`.
+
+### How to Fix
+
+- Replace direct `form.state` usage with the public helpers (`form.properties`, getters, or explicit payload builders).
+- If you were creating helpers that accessed `state` from outside the form, move those helpers inside the form class so they can rely on the protected field.

@@ -1,3 +1,11 @@
+## v4.0.0-beta.5 - 2026-02-27 (beta)
+
+# [4.0.0-beta.5](/compare/v4.0.0-beta.4...v4.0.0-beta.5) (2026-02-27)
+
+
+### Bug Fixes
+
+* satisfy paginator updater typing and type-only import in VueRequestLoaderFactory 6468368
 ## v4.0.0-beta.4 - 2026-02-26 (beta)
 
 # [4.0.0-beta.4](/compare/v4.0.0-beta.3...v4.0.0-beta.4) (2026-02-26)

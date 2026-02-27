@@ -2,7 +2,6 @@ import { PaginationDataDto } from './dtos/PaginationDataDto'
 import { StatePaginationDataDto } from './dtos/StatePaginationDataDto'
 import { VuePaginationDriver } from './frontendDrivers/VuePaginationDriver'
 import { VueBaseViewDriver } from './frontendDrivers/VueBaseViewDriver'
-import { Paginator } from './Paginator'
 import { BasePaginator } from './BasePaginator'
 import { PageAwarePaginator } from './PageAwarePaginator'
 import { StatePaginator } from './StatePaginator'
@@ -25,7 +24,6 @@ export {
   StatePaginationDataDto,
   VuePaginationDriver,
   VueBaseViewDriver,
-  Paginator,
   BasePaginator,
   PageAwarePaginator,
   StatePaginator,

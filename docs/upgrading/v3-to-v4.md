@@ -78,6 +78,24 @@ Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastP
 `PaginationParamsContract` was removed from the Laravel pagination exports because it was unused. Define your own params
 interface in your app instead.
 
+## Deprecated `Paginator` alias removed
+
+`Paginator` (and the related `PaginatorOptions` alias) was an old alias for `PageAwarePaginator`. The alias file has been removed, so importing `Paginator` or `PaginatorOptions` now results in a build error.
+
+### How to Fix
+
+- Replace `import { Paginator } from '@blueprint-ts/core/pagination'` with:
+
+```typescript
+import { PageAwarePaginator } from '@blueprint-ts/core/pagination'
+```
+
+- Replace `import { type PaginatorOptions } from '@blueprint-ts/core/pagination'` with:
+
+```typescript
+import { type PageAwarePaginatorOptions } from '@blueprint-ts/core/pagination'
+```
+
 ## Core Modules Moved out of `service/`
 
 Core (non-framework) modules moved from `@blueprint-ts/core/service/*` to `@blueprint-ts/core/*`.

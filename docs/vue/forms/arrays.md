@@ -1,5 +1,7 @@
 # Arrays
 
+## PropertyAwareArray
+
 Use `PropertyAwareArray` for arrays with per-item `v-model`, errors, and dirty state when your array contains objects.
 
 ```ts
@@ -43,3 +45,58 @@ Example component usage:
 ```
 
 Nested error keys like `positions.0.value` map into `position.value.errors`.
+
+## propertyAwareToRaw
+
+`propertyAwareToRaw` converts a property-aware object (each field wrapped in `{ model: { value } }`) into a plain object by unwrapping every field's `model.value`. It is purely a transformation: metadata such as `errors`, `dirty`, and `touched` is dropped, while arrays and nested objects are processed recursively. Keys starting with `_` are omitted from the result, and arrays are mapped element-by-element via the same unwrapping.
+
+### Input shape (property-aware)
+
+```ts
+const propertyAwarePosition = {
+  id: {
+    model: { value: 'pos-1' },
+    errors: [],
+    dirty: false,
+    touched: false
+  },
+  sort_order: {
+    model: { value: 10 },
+    errors: [],
+    dirty: false,
+    touched: false
+  },
+  description: {
+    model: { value: 'Service' },
+    errors: [],
+    dirty: false,
+    touched: false
+  },
+  net_amount: {
+    model: { value: 100 },
+    errors: [],
+    dirty: false,
+    touched: false
+  }
+}
+```
+
+Note that this is only an example of how the input shape looks When used in a form the model is a WritableComputedRef.
+
+### Output shape (raw)
+
+```ts
+const rawPosition = {
+  id: 'pos-1',
+  sort_order: 10,
+  description: 'Service',
+  net_amount: 100
+}
+```
+
+### Notes
+
+- Arrays are mapped element-by-element.
+- Nested objects are unwrapped recursively.
+- Any keys starting with `_` are ignored.
+- Only the `model.value` remains; form metadata is dropped.

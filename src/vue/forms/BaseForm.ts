@@ -27,6 +27,15 @@ type FieldProperty<T> = {
   touched: boolean
 }
 
+type PropertyAwareToRaw<T> =
+  T extends Array<infer U>
+    ? Array<PropertyAwareToRaw<U>>
+    : T extends { model: { value: infer V } }
+      ? V
+      : T extends object
+        ? { [K in keyof T]: PropertyAwareToRaw<T[K]> }
+        : T
+
 type FormKey<FormBody extends object> = Extract<keyof FormBody, string>
 type RequestKey<RequestBody extends object> = Extract<keyof RequestBody, string>
 type ArrayItem<T> = T extends Array<infer Item> ? Item : never
@@ -54,13 +63,13 @@ function isErrorObject(value: unknown): value is ErrorObject {
   return isRecord(value)
 }
 
-export function propertyAwareToRaw<T>(propertyAwareObject: T): T {
+export function propertyAwareToRaw<T>(propertyAwareObject: T): PropertyAwareToRaw<T> {
   if (Array.isArray(propertyAwareObject)) {
-    return propertyAwareObject.map((item) => propertyAwareToRaw(item)) as T
+    return propertyAwareObject.map((item) => propertyAwareToRaw(item)) as PropertyAwareToRaw<T>
   }
 
   if (!isRecord(propertyAwareObject)) {
-    return propertyAwareObject
+    return propertyAwareObject as PropertyAwareToRaw<T>
   }
 
   const result: Record<string, unknown> = {}
@@ -87,7 +96,7 @@ export function propertyAwareToRaw<T>(propertyAwareObject: T): T {
     result[key] = value
   }
 
-  return result as T
+  return result as PropertyAwareToRaw<T>
 }
 
 /** Helper: shallow-merge source object into target. */

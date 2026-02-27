@@ -42,7 +42,7 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
       const result = updater(row, i, data)
 
       if (result !== undefined) {
-        data[i] = result
+        data[i] = result as ResourceInterface
       }
 
       updated++

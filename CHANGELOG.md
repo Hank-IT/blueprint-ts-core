@@ -1,3 +1,11 @@
+## v4.0.0-beta.8 - 2026-02-28 (beta)
+
+# [4.0.0-beta.8](/compare/v4.0.0-beta.7...v4.0.0-beta.8) (2026-02-28)
+
+
+### Features
+
+* **requests:** add concurrency policy, stale-response handling, and docs 5feb49d
 ## v4.0.0-beta.7 - 2026-02-27 (beta)
 
 # [4.0.0-beta.7](/compare/v4.0.0-beta.6...v4.0.0-beta.7) (2026-02-27)

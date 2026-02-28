@@ -38,7 +38,7 @@ If you are using Vue, the library provides `VuePaginationDriverFactory` and `Vue
 - `flush`: clears existing data before applying the next page
 - `replace`: replaces existing data instead of appending (useful for infinite scroll)
 
-`updateRows` is available on all paginators. See [Updating Rows](./updating-rows).
+`updateRows` and `removeRows` are available on all paginators. See [Updating Rows](./updating-rows).
 
 ## Using Laravel Pagination
 

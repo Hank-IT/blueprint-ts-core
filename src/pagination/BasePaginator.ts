@@ -55,6 +55,25 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
     return updated
   }
 
+  public removeRows(
+    predicate: (row: ResourceInterface, index: number, data: ResourceInterface[]) => boolean,
+    options?: { adjustTotal?: boolean }
+  ): number {
+    const data = this.viewDriver.getData()
+    const next = data.filter((row, index) => !predicate(row, index, data))
+    const removed = data.length - next.length
+
+    if (removed > 0) {
+      this.viewDriver.setData(next)
+
+      if (options?.adjustTotal ?? true) {
+        this.viewDriver.setTotal(Math.max(0, this.viewDriver.getTotal() - removed))
+      }
+    }
+
+    return removed
+  }
+
   public getTotal(): number {
     return this.viewDriver.getTotal()
   }

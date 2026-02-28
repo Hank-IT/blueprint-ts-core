@@ -34,3 +34,19 @@ const updated = paginator.updateRows(
     (row) => ({ ...row, updatedAt: new Date().toISOString() })
 )
 ```
+
+## Removing Rows
+
+Use `removeRows` to delete items from the current page data without reloading. By default it also decrements `total`
+by the number of removed rows. Set `adjustTotal: false` to skip that behavior.
+
+```typescript
+// Remove a single item
+const removed = paginator.removeRows((row) => row.id === targetId)
+
+// Remove all drafts without adjusting total
+const removedDrafts = paginator.removeRows(
+    (row) => row.status === 'draft',
+    { adjustTotal: false }
+)
+```

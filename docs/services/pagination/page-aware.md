@@ -40,6 +40,11 @@ await paginator.setPageSize(25).load()
 Page navigation helpers (`toNextPage`, `toPreviousPage`, `toFirstPage`, `toLastPage`) update the page number and load
 the new page in one call.
 
+## Concurrency
+
+If the underlying request uses concurrency mode `LATEST` or `REPLACE_LATEST`, stale responses are ignored. In that case,
+`load()` resolves with the current page data without updating the view, so older responses cannot overwrite newer ones.
+
 
 ## Updating Rows
 

@@ -13,6 +13,22 @@ When a request fails, `BaseRequest.send()` routes error responses through the re
 
 ## Catching Errors
 
+When using request concurrency (see [Concurrency](/services/requests/concurrency)), `BaseRequest` can throw a `StaleResponseException` for outdated responses. These should usually be ignored:
+
+```typescript
+import { StaleResponseException } from '@blueprint-ts/core/requests'
+
+try {
+    await request.send()
+} catch (error: unknown) {
+    if (error instanceof StaleResponseException) {
+        return
+    }
+
+    throw error
+}
+```
+
 - `400` -> `BadRequestException`
 - `401` -> `UnauthorizedException`
 - `403` -> `ForbiddenException`

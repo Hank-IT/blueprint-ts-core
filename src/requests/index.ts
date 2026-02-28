@@ -8,6 +8,7 @@ import { ErrorHandler } from './ErrorHandler'
 import { RequestErrorRouter } from './RequestErrorRouter'
 import { RequestEvents } from './RequestEvents.enum'
 import { RequestMethodEnum } from './RequestMethod.enum'
+import { RequestConcurrencyMode } from './RequestConcurrencyMode.enum'
 import { JsonBodyFactory } from './factories/JsonBodyFactory'
 import { FormDataFactory } from './factories/FormDataFactory'
 import { type BodyContract } from './contracts/BodyContract'
@@ -19,7 +20,9 @@ import { type BodyFactoryContract } from './contracts/BodyFactoryContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type BaseRequestContract } from './contracts/BaseRequestContract'
 import { ResponseException } from './exceptions/ResponseException'
+import { StaleResponseException } from './exceptions/StaleResponseException'
 import { type HeadersContract } from './contracts/HeadersContract'
+import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
 
 export {
   FetchDriver,
@@ -32,7 +35,9 @@ export {
   RequestErrorRouter,
   RequestEvents,
   RequestMethodEnum,
+  RequestConcurrencyMode,
   ResponseException,
+  StaleResponseException,
   JsonBodyFactory,
   FormDataFactory
 }
@@ -46,5 +51,6 @@ export type {
   BodyFactoryContract,
   ResponseHandlerContract,
   BaseRequestContract,
-  HeadersContract
+  HeadersContract,
+  RequestConcurrencyOptions
 }

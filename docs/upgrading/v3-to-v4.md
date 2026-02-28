@@ -170,6 +170,22 @@ export class MyConfirmOptions implements ConfirmDialogOptions {
 }
 ```
 
+## BaseRequestContract Requires `setConcurrency`
+
+`BaseRequestContract` now includes `setConcurrency(...)` so requests can opt into concurrency handling (e.g., latest-wins or replace-latest).
+If you implemented `BaseRequestContract` directly (instead of extending `BaseRequest`), TypeScript will now require this method.
+
+### How to Fix
+
+Add the method to your custom request implementation:
+
+```typescript
+setConcurrency(options?: RequestConcurrencyOptions): this {
+  // no-op by default; use options if your implementation needs them
+  return this
+}
+```
+
 ## Laravel Packages Moved
 
 Laravel modules moved from `@blueprint-ts/core/service/laravel/*` to `@blueprint-ts/core/laravel/*`.

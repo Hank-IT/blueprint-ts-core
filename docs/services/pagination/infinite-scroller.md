@@ -1,6 +1,7 @@
 # Infinite Scroll
 
-Use `InfiniteScroller` when you want to append pages to the existing list:
+Use `InfiniteScroller` when you want to append pages to the existing list. It extends `PageAwarePaginator`, so all
+page-aware features and helpers are available.
 
 ```typescript
 import { InfiniteScroller } from '@blueprint-ts/core/pagination'
@@ -11,8 +12,8 @@ await scroller.load()
 await scroller.toNextPage()
 ```
 
-`InfiniteScroller` uses the same view driver factory as `PageAwarePaginator`. You can pass `{ flush: true }` or
-`{ replace: true }` to `load()` or `setPageNumber()` to control how data is merged.
+You can pass `{ flush: true }` to clear existing data before loading a page. In addition, `InfiniteScroller` supports
+`{ replace: true }` to replace the current list instead of appending.
 
 ## Scroll Detection Helper
 

@@ -68,4 +68,8 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
     this.viewDriver.setTotal(dto.getTotal())
     this.initialized = true
   }
+
+  protected handleStaleResponse(): PaginationDataDto<ResourceInterface[]> {
+    return new PaginationDataDto<ResourceInterface[]>(this.viewDriver.getData(), this.viewDriver.getTotal())
+  }
 }

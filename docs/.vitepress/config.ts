@@ -25,6 +25,7 @@ export default defineConfig({
               { text: 'Responses', link: '/services/requests/responses' },
               { text: 'Request Bodies', link: '/services/requests/request-bodies' },
               { text: 'Headers', link: '/services/requests/headers' },
+              { text: 'Concurrency', link: '/services/requests/concurrency' },
               { text: 'Aborting Requests', link: '/services/requests/abort-requests' },
               { text: 'Events', link: '/services/requests/events' },
               { text: 'Bulk Requests', link: '/services/requests/bulk-requests' },

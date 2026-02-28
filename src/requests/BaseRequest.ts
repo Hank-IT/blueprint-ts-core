@@ -4,6 +4,7 @@ import { RequestEvents } from './RequestEvents.enum'
 import { RequestMethodEnum } from './RequestMethod.enum'
 import { BaseResponse } from './responses/BaseResponse'
 import { ResponseException } from './exceptions/ResponseException'
+import { StaleResponseException } from './exceptions/StaleResponseException'
 import { type DriverConfigContract } from './contracts/DriverConfigContract'
 import { type BodyFactoryContract } from './contracts/BodyFactoryContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
@@ -13,6 +14,8 @@ import { type BaseRequestContract, type EventHandlerCallback } from './contracts
 import { type HeadersContract } from './contracts/HeadersContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type ResponseContract } from './contracts/ResponseContract'
+import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
+import { RequestConcurrencyMode } from './RequestConcurrencyMode.enum'
 import { mergeDeep } from '../support/helpers'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -29,6 +32,7 @@ export abstract class BaseRequest<
   protected requestBody: RequestBodyInterface | undefined = undefined
   protected requestLoader: RequestLoaderContract<RequestLoaderLoadingType> | undefined = undefined
   protected abortSignal: AbortSignal | undefined = undefined
+  protected concurrencyOptions: RequestConcurrencyOptions | undefined = undefined
   /* @ts-expect-error Ignore generics */
   protected events: { [key in RequestEvents]?: EventHandlerCallback[] } = {}
 
@@ -36,6 +40,9 @@ export abstract class BaseRequest<
 
   protected static requestDriver: RequestDriverContract
   protected static requestLoaderFactory: RequestLoaderFactoryContract<unknown>
+  protected static concurrencySequenceByKey: Map<string, number> = new Map()
+  protected static concurrencyAbortControllerByKey: Map<string, AbortController> = new Map()
+  protected static concurrencyInFlightByKey: Map<string, number> = new Map()
 
   public constructor() {
     if (BaseRequest.requestLoaderFactory !== undefined) {
@@ -57,6 +64,12 @@ export abstract class BaseRequest<
 
   public setRequestLoader(loader: RequestLoaderContract<RequestLoaderLoadingType>): this {
     this.requestLoader = loader
+
+    return this
+  }
+
+  public setConcurrency(options?: RequestConcurrencyOptions): this {
+    this.concurrencyOptions = options
 
     return this
   }
@@ -124,6 +137,25 @@ export abstract class BaseRequest<
   }
 
   public async send(): Promise<ResponseClass> {
+    const concurrencyMode: RequestConcurrencyMode = this.concurrencyOptions?.mode ?? RequestConcurrencyMode.ALLOW
+    const concurrencyKey = this.concurrencyOptions?.key ?? this.requestId
+    const useReplace = concurrencyMode === RequestConcurrencyMode.REPLACE || concurrencyMode === RequestConcurrencyMode.REPLACE_LATEST
+    const useLatest = concurrencyMode === RequestConcurrencyMode.LATEST || concurrencyMode === RequestConcurrencyMode.REPLACE_LATEST
+    const sequence = this.bumpConcurrencySequence(concurrencyKey)
+    this.incrementConcurrencyInFlight(concurrencyKey)
+
+    if (useReplace) {
+      const previousController = BaseRequest.concurrencyAbortControllerByKey.get(concurrencyKey)
+
+      if (previousController) {
+        previousController.abort()
+      }
+
+      const controller = new AbortController()
+      BaseRequest.concurrencyAbortControllerByKey.set(concurrencyKey, controller)
+      this.setAbortSignal(controller.signal)
+    }
+
     this.dispatch<boolean>(RequestEvents.LOADING, true)
 
     this.requestLoader?.setLoading(true)
@@ -144,11 +176,23 @@ export abstract class BaseRequest<
         this.getConfig()
       )
       .then(async (responseHandler: ResponseHandlerContract) => {
+        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
+          throw new StaleResponseException()
+        }
+
         await responseSkeleton.setResponse(responseHandler)
 
         return responseSkeleton
       })
       .catch(async (error) => {
+        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
+          throw new StaleResponseException('Stale response ignored', error)
+        }
+
+        if (error instanceof StaleResponseException) {
+          throw error
+        }
+
         if (error instanceof ResponseException) {
           const handler = new ErrorHandler<ResponseErrorBody>(error.getResponse())
 
@@ -160,8 +204,14 @@ export abstract class BaseRequest<
         throw error
       })
       .finally(() => {
-        this.dispatch<boolean>(RequestEvents.LOADING, false)
-        this.requestLoader?.setLoading(false)
+        const isStale = useLatest && !this.isLatestSequence(concurrencyKey, sequence)
+
+        if (!isStale) {
+          this.dispatch<boolean>(RequestEvents.LOADING, false)
+          this.requestLoader?.setLoading(false)
+        }
+
+        this.decrementConcurrencyInFlight(concurrencyKey)
       })
   }
 
@@ -183,6 +233,41 @@ export abstract class BaseRequest<
     this.abortSignal = signal
 
     return this
+  }
+
+  protected bumpConcurrencySequence(key: string): number {
+    const next = (BaseRequest.concurrencySequenceByKey.get(key) ?? 0) + 1
+    BaseRequest.concurrencySequenceByKey.set(key, next)
+
+    return next
+  }
+
+  protected isLatestSequence(key: string, sequence: number): boolean {
+    return (BaseRequest.concurrencySequenceByKey.get(key) ?? 0) === sequence
+  }
+
+  protected incrementConcurrencyInFlight(key: string): void {
+    const next = (BaseRequest.concurrencyInFlightByKey.get(key) ?? 0) + 1
+    BaseRequest.concurrencyInFlightByKey.set(key, next)
+  }
+
+  protected decrementConcurrencyInFlight(key: string): void {
+    const current = BaseRequest.concurrencyInFlightByKey.get(key)
+
+    if (current === undefined) {
+      return
+    }
+
+    const next = current - 1
+
+    if (next <= 0) {
+      BaseRequest.concurrencyInFlightByKey.delete(key)
+      BaseRequest.concurrencySequenceByKey.delete(key)
+      BaseRequest.concurrencyAbortControllerByKey.delete(key)
+      return
+    }
+
+    BaseRequest.concurrencyInFlightByKey.set(key, next)
   }
 
   protected baseUrl(): undefined {

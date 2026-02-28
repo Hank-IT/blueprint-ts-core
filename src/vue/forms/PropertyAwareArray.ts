@@ -25,7 +25,6 @@ export type PropertyAware<T> = {
 export class PropertyAwareArray<T = unknown> extends Array<T> {
   // Private brand to prevent plain arrays from being assignable to PropertyAwareArray.
   // This keeps conditional types from treating normal arrays as property-aware.
-  // eslint-disable-next-line @typescript-eslint/no-unused-private-class-members
   private readonly __propertyAwareArrayBrand!: void
   /**
    * Creates a new PropertyAwareArray instance

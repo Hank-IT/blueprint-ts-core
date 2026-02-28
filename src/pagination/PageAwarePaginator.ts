@@ -4,6 +4,7 @@ import { type ViewDriverFactoryContract } from './contracts/ViewDriverFactoryCon
 import { type PaginatorLoadDataOptions } from './contracts/PaginatorLoadDataOptions'
 import { type PaginationDataDriverContract } from './contracts/PaginationDataDriverContract'
 import { BasePaginator } from './BasePaginator'
+import { StaleResponseException } from '../requests/exceptions/StaleResponseException'
 
 export interface PageAwarePaginatorOptions {
   viewDriverFactory?: ViewDriverFactoryContract
@@ -113,10 +114,19 @@ export class PageAwarePaginator<ResourceInterface> extends BasePaginator<Resourc
   }
 
   protected loadData(pageNumber: number, pageSize: number, options?: PaginatorLoadDataOptions): Promise<PaginationDataDto<ResourceInterface[]>> {
-    return this.dataDriver.get(pageNumber, pageSize).then((value: PaginationDataDto<ResourceInterface[]>) => {
-      this.passDataToViewDriver(value, options)
+    return this.dataDriver
+      .get(pageNumber, pageSize)
+      .then((value: PaginationDataDto<ResourceInterface[]>) => {
+        this.passDataToViewDriver(value, options)
 
-      return value
-    })
+        return value
+      })
+      .catch((error) => {
+        if (error instanceof StaleResponseException) {
+          return this.handleStaleResponse()
+        }
+
+        throw error
+      })
   }
 }

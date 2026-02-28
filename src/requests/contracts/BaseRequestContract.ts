@@ -2,6 +2,7 @@ import { RequestMethodEnum } from '../RequestMethod.enum'
 import { RequestEvents } from '../RequestEvents.enum'
 import { type BodyFactoryContract } from './BodyFactoryContract'
 import { type HeadersContract } from './HeadersContract'
+import { type RequestConcurrencyOptions } from '../types/RequestConcurrencyOptions'
 
 export type EventHandlerCallback<T> = (value: T) => void
 
@@ -33,4 +34,6 @@ export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterf
   getResponse(): ResponseClass
 
   setAbortSignal(signal: AbortSignal): this
+
+  setConcurrency(options?: RequestConcurrencyOptions): this
 }

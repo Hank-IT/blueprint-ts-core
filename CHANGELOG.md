@@ -1,3 +1,11 @@
+## v4.0.0-beta.10 - 2026-02-28 (beta)
+
+# [4.0.0-beta.10](/compare/v4.0.0-beta.9...v4.0.0-beta.10) (2026-02-28)
+
+
+### Features
+
+* **pagination:** support local row removal without reload 3a66689
 ## v4.0.0-beta.9 - 2026-02-28 (beta)
 
 # [4.0.0-beta.9](/compare/v4.0.0-beta.8...v4.0.0-beta.9) (2026-02-28)

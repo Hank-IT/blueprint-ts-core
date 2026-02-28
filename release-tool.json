@@ -20,7 +20,7 @@
       "subdir": "",
       "commit_message": "docs: publish {tag}",
       "add_nojekyll": true,
-      "force_push": false
+      "force_push": true
     }
   }
 }

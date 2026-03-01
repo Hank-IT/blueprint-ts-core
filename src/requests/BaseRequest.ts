@@ -113,7 +113,8 @@ export abstract class BaseRequest<
   }
 
   public buildUrl(): URL {
-    const url = this.params !== undefined && Object.keys(this.params).length === 0 ? this.url() : this.url() + '?' + qs.stringify(this.params)
+    const hasParams = this.params !== undefined && Object.keys(this.params).length > 0
+    const url = hasParams ? this.url() + '?' + qs.stringify(this.params) : this.url()
 
     return new URL(url, this.baseUrl() ?? BaseRequest.defaultBaseUrl)
   }

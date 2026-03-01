@@ -9,7 +9,22 @@ import {
   ResponseException,
   NoResponseReceivedException,
   ServerErrorException,
-  InvalidJsonException
+  InvalidJsonException,
+  BadRequestException,
+  ForbiddenException,
+  MethodNotAllowedException,
+  RequestTimeoutException,
+  ConflictException,
+  GoneException,
+  PreconditionFailedException,
+  PayloadTooLargeException,
+  UnsupportedMediaTypeException,
+  LockedException,
+  TooManyRequestsException,
+  NotImplementedException,
+  BadGatewayException,
+  ServiceUnavailableException,
+  GatewayTimeoutException
 } from '../../../src/requests/exceptions';
 
 describe('ErrorHandler', () => {
@@ -139,6 +154,35 @@ describe('ErrorHandler', () => {
     const handler = new ErrorHandler(mockResponse as any)
 
     await expect(handler.handle()).rejects.toThrow(InvalidJsonException);
+    expect(mockResponse.json).toHaveBeenCalled();
+  });
+
+  it.each([
+    [400, BadRequestException],
+    [403, ForbiddenException],
+    [405, MethodNotAllowedException],
+    [408, RequestTimeoutException],
+    [409, ConflictException],
+    [410, GoneException],
+    [412, PreconditionFailedException],
+    [413, PayloadTooLargeException],
+    [415, UnsupportedMediaTypeException],
+    [423, LockedException],
+    [429, TooManyRequestsException],
+    [501, NotImplementedException],
+    [502, BadGatewayException],
+    [503, ServiceUnavailableException],
+    [504, GatewayTimeoutException],
+  ])('should throw correct exception for status code %i', async (status, ExceptionType) => {
+    const mockResponse = {
+      getStatusCode: vi.fn().mockReturnValue(status),
+      json: vi.fn().mockResolvedValue({}),
+    };
+
+    const handler = new ErrorHandler(mockResponse as any);
+
+    await expect(handler.handle()).rejects.toThrow(ExceptionType);
+    expect(mockResponse.getStatusCode).toHaveBeenCalled();
     expect(mockResponse.json).toHaveBeenCalled();
   });
 });

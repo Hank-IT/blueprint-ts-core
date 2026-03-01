@@ -14,7 +14,7 @@ export class EmailRule<FormBody extends object> extends BaseRule<FormBody> {
       return false
     }
 
-    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   }
 
   public getMessage(): string {

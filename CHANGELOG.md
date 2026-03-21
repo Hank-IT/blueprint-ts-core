@@ -1,3 +1,16 @@
+## 4.1.0-beta.1 - 2026-03-21 (beta)
+
+# [4.1.0-beta.1](/compare/v4.0.0...v4.1.0-beta.1) (2026-03-21)
+
+
+### Bug Fixes
+
+* **requests:** export HeaderValue type 15e55c1
+
+
+### Features
+
+* **requests:** add XMLHttpRequest upload progress support 19123df
 ## v4.0.0 - 2026-03-01
 
 # [4.0.0](/compare/v4.0.0-beta.10...v4.0.0) (2026-03-01)

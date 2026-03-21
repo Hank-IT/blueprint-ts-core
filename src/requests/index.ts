@@ -23,6 +23,8 @@ import { ResponseException } from './exceptions/ResponseException'
 import { StaleResponseException } from './exceptions/StaleResponseException'
 import { type HeadersContract } from './contracts/HeadersContract'
 import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
+import { type RequestUploadProgress } from './types/RequestUploadProgress'
+import { XMLHttpRequestDriver } from './drivers/xhr/XMLHttpRequestDriver'
 
 export {
   FetchDriver,
@@ -39,7 +41,8 @@ export {
   ResponseException,
   StaleResponseException,
   JsonBodyFactory,
-  FormDataFactory
+  FormDataFactory,
+  XMLHttpRequestDriver
 }
 
 export type {
@@ -52,5 +55,6 @@ export type {
   ResponseHandlerContract,
   BaseRequestContract,
   HeadersContract,
-  RequestConcurrencyOptions
+  RequestConcurrencyOptions,
+  RequestUploadProgress
 }

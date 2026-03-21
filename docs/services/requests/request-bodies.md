@@ -54,6 +54,8 @@ public override getRequestBodyFactory() {
 }
 ```
 
+If you want to show upload progress for multipart file uploads, see [File Uploads](/services/requests/file-uploads).
+
 ## Custom Body Factories
 
 You can implement your own body factory by returning a `BodyContract` with custom headers and serialization logic.

@@ -7,6 +7,7 @@ import { ResponseException } from './exceptions/ResponseException'
 import { StaleResponseException } from './exceptions/StaleResponseException'
 import { type DriverConfigContract } from './contracts/DriverConfigContract'
 import { type BodyFactoryContract } from './contracts/BodyFactoryContract'
+import { type BodyContract } from './contracts/BodyContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
 import { type RequestDriverContract } from './contracts/RequestDriverContract'
 import { type RequestLoaderFactoryContract } from './contracts/RequestLoaderFactoryContract'
@@ -15,6 +16,7 @@ import { type HeadersContract } from './contracts/HeadersContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type ResponseContract } from './contracts/ResponseContract'
 import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
+import { type RequestUploadProgress } from './types/RequestUploadProgress'
 import { RequestConcurrencyMode } from './RequestConcurrencyMode.enum'
 import { mergeDeep } from '../support/helpers'
 import { v4 as uuidv4 } from 'uuid'
@@ -164,8 +166,9 @@ export abstract class BaseRequest<
     const responseSkeleton = this.getResponse()
 
     const requestBody = this.requestBody === undefined ? undefined : this.getRequestBodyFactory()?.make(this.requestBody)
+    const requestConfig = this.buildRequestConfig(requestBody, concurrencyKey, sequence, useLatest)
 
-    return BaseRequest.requestDriver
+    return this.resolveRequestDriver()
       .send(
         this.buildUrl(),
         this.method(),
@@ -174,7 +177,7 @@ export abstract class BaseRequest<
           ...this.requestHeaders()
         },
         requestBody,
-        this.getConfig()
+        requestConfig
       )
       .then(async (responseHandler: ResponseHandlerContract) => {
         if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
@@ -275,9 +278,44 @@ export abstract class BaseRequest<
     return undefined
   }
 
+  protected buildRequestConfig(
+    requestBody: BodyContract | undefined,
+    concurrencyKey: string,
+    sequence: number,
+    useLatest: boolean
+  ): DriverConfigContract {
+    const config = this.getConfig() ?? {}
+    const onUploadProgress = config.onUploadProgress
+
+    if (requestBody === undefined) {
+      return config
+    }
+
+    return {
+      ...config,
+      onUploadProgress: (progress: RequestUploadProgress) => {
+        onUploadProgress?.(progress)
+
+        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
+          return
+        }
+
+        this.dispatch<RequestUploadProgress>(RequestEvents.UPLOAD_PROGRESS, progress)
+      }
+    }
+  }
+
   protected getConfig(): DriverConfigContract | undefined {
     return {
       abortSignal: this.abortSignal
     }
+  }
+
+  protected resolveRequestDriver(): RequestDriverContract {
+    return this.getRequestDriver() ?? BaseRequest.requestDriver
+  }
+
+  protected getRequestDriver(): RequestDriverContract | undefined {
+    return undefined
   }
 }

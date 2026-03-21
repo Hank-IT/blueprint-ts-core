@@ -118,6 +118,33 @@ describe('BaseRequest', () => {
     expect(body?.getContent()).toBe('{"name":"Ada"}')
   })
 
+  it('dispatches upload progress events from the driver config callback', async () => {
+    const driver: RequestDriverContract = {
+      send: vi.fn().mockImplementation(async (_url, _method, _headers, _body, requestConfig) => {
+        requestConfig?.onUploadProgress?.({
+          loaded: 5,
+          total: 10,
+          lengthComputable: true,
+          progress: 0.5,
+        })
+
+        return createResponseHandler()
+      }),
+    }
+
+    BaseRequest.setRequestDriver(driver)
+
+    const request = new TestRequest()
+    const progressEvents: Array<number | undefined> = []
+
+    request.on(RequestEvents.UPLOAD_PROGRESS, (value: { progress?: number }) => progressEvents.push(value.progress))
+    request.setBody({ name: 'Ada' })
+
+    await request.send()
+
+    expect(progressEvents).toEqual([0.5])
+  })
+
   it('throws when loading state is requested without a loader', () => {
     const request = new TestRequest()
 
@@ -195,5 +222,29 @@ describe('BaseRequest', () => {
 
     await expect(request.send()).rejects.toBe(responseException)
     expect(handleSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses a request-defined driver when provided', async () => {
+    const globalDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+    const requestDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+
+    BaseRequest.setRequestDriver(globalDriver)
+
+    class DriverSpecificRequest extends TestRequest {
+      protected override getRequestDriver(): RequestDriverContract {
+        return requestDriver
+      }
+    }
+
+    const request = new DriverSpecificRequest()
+
+    await request.send()
+
+    expect(requestDriver.send).toHaveBeenCalledTimes(1)
+    expect(globalDriver.send).not.toHaveBeenCalled()
   })
 })

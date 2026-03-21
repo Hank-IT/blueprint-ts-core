@@ -24,6 +24,7 @@ export default defineConfig({
               { text: 'Drivers', link: '/services/requests/drivers' },
               { text: 'Responses', link: '/services/requests/responses' },
               { text: 'Request Bodies', link: '/services/requests/request-bodies' },
+              { text: 'File Uploads', link: '/services/requests/file-uploads' },
               { text: 'Headers', link: '/services/requests/headers' },
               { text: 'Concurrency', link: '/services/requests/concurrency' },
               { text: 'Aborting Requests', link: '/services/requests/abort-requests' },

@@ -1,3 +1,4 @@
 export enum RequestEvents {
-  LOADING = 'loading'
+  LOADING = 'loading',
+  UPLOAD_PROGRESS = 'upload-progress'
 }

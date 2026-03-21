@@ -9,6 +9,7 @@ describe('Enums', () => {
   it('exposes expected request enums', () => {
     expect(RequestMethodEnum.GET).toBe('GET')
     expect(RequestEvents.LOADING).toBe('loading')
+    expect(RequestEvents.UPLOAD_PROGRESS).toBe('upload-progress')
     expect(RequestConcurrencyMode.REPLACE_LATEST).toBe('replace-latest')
   })
 

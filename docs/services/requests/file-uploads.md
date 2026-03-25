@@ -1,7 +1,15 @@
 # File Uploads
 
-Use `FormDataFactory` to build multipart payloads, and use `XMLHttpRequestDriver` when the consuming application needs
-upload progress for a progress bar.
+Use `FormDataFactory` for multipart uploads with fields, and use `BinaryBodyFactory` when the endpoint expects a raw
+binary body such as a chunk `PUT`. Use `XMLHttpRequestDriver` when the consuming application needs upload progress for a
+progress bar.
+
+Choose the body factory based on the wire format your endpoint expects:
+
+- Use `FormDataFactory` when the request includes normal fields plus one or more files.
+- Use `BinaryBodyFactory` when the request body itself is the file or chunk.
+- Use `FetchDriver` if you just need to send the upload.
+- Use `XMLHttpRequestDriver` if you also need upload progress events.
 
 ## Request Definition
 
@@ -92,10 +100,65 @@ await request.setBody({
 }).send()
 ```
 
+## Raw Chunk Uploads
+
+```typescript
+import {
+    BaseRequest,
+    BinaryBodyFactory,
+    JsonResponse,
+    RequestMethodEnum,
+    XMLHttpRequestDriver
+} from '@blueprint-ts/core/requests'
+
+interface UploadPartResponse {
+    etag: string
+}
+
+class UploadPartRequest extends BaseRequest<
+        boolean,
+        { message: string },
+        UploadPartResponse,
+        JsonResponse<UploadPartResponse>,
+        Uint8Array
+> {
+    public method(): RequestMethodEnum {
+        return RequestMethodEnum.PUT
+    }
+
+    public url(): string {
+        return '/api/v1/uploads/part'
+    }
+
+    public getResponse(): JsonResponse<UploadPartResponse> {
+        return new JsonResponse<UploadPartResponse>()
+    }
+
+    public override getRequestBodyFactory() {
+        return new BinaryBodyFactory<Uint8Array>('application/octet-stream')
+    }
+
+    public override requestHeaders() {
+        return {
+            'X-Part-Number': '1'
+        }
+    }
+
+    protected override getRequestDriver() {
+        return new XMLHttpRequestDriver()
+    }
+}
+```
+
+In this example, `setBody(...)` can receive a `Blob`, `ArrayBuffer`, `Uint8Array`, or another typed-array/data-view
+payload supported by `BinaryBodyFactory`.
+
 ## Notes
 
 - Upload progress requires `XMLHttpRequestDriver`. The default `FetchDriver` does not emit upload progress events.
 - Define `XMLHttpRequestDriver` inside the upload request class when that request should always support progress.
+- `BinaryBodyFactory` only sets `Content-Type` automatically when the body is a `Blob` with a non-empty `type`.
+  For `ArrayBuffer` and typed-array uploads, pass the expected content type explicitly.
 - `XMLHttpRequestDriver` supports the same `corsWithCredentials` and `headers` options as `FetchDriver`, including
   header callbacks.
 - Request-defined drivers do not automatically inherit config from the globally registered driver.

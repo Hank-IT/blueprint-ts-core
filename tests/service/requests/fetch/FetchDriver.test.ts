@@ -3,10 +3,10 @@ import { FetchDriver } from '../../../../src/requests/drivers/fetch/FetchDriver'
 import { FetchResponse } from '../../../../src/requests/drivers/fetch/FetchResponse'
 import { RequestMethodEnum } from '../../../../src/requests/RequestMethod.enum'
 import { ResponseException } from '../../../../src/requests/exceptions/ResponseException'
-import type { BodyContract } from '../../../../src/requests/contracts/BodyContract'
+import type { BodyContent, BodyContract } from '../../../../src/requests/contracts/BodyContract'
 
-const createBody = (content: string): BodyContract => ({
-  getHeaders: () => ({ 'Content-Type': 'application/json' }),
+const createBody = (content: BodyContent, headers: Record<string, string> = { 'Content-Type': 'application/json' }): BodyContract => ({
+  getHeaders: () => headers,
   getContent: () => content,
 })
 
@@ -63,6 +63,24 @@ describe('FetchDriver', () => {
 
     const [, config] = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(config.body).toBeUndefined()
+  })
+
+  it('passes Blob bodies through to fetch unchanged', async () => {
+    const response = new Response('ok', { status: 200 })
+    ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(response)
+
+    const blob = new Blob(['chunk'], { type: 'application/octet-stream' })
+    const driver = new FetchDriver()
+
+    await driver.send(
+      'https://example.com',
+      RequestMethodEnum.PUT,
+      {},
+      createBody(blob, { 'Content-Type': 'application/octet-stream' })
+    )
+
+    const [, config] = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(config.body).toBe(blob)
   })
 
   it('throws ResponseException when response is not ok', async () => {

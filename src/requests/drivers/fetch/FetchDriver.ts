@@ -2,7 +2,7 @@ import { ResponseException } from '../../exceptions/ResponseException'
 import { FetchResponse } from './FetchResponse'
 import { RequestMethodEnum } from '../../RequestMethod.enum'
 import { type HeadersContract, type HeaderValue } from '../../contracts/HeadersContract'
-import { type BodyContract } from '../../contracts/BodyContract'
+import { type BodyContent, type BodyContract } from '../../contracts/BodyContract'
 import { type RequestDriverContract } from '../../contracts/RequestDriverContract'
 import { type DriverConfigContract } from '../../contracts/DriverConfigContract'
 import { type ResponseHandlerContract } from '../contracts/ResponseHandlerContract'
@@ -17,7 +17,7 @@ interface FetchDriverConfig {
   headers: HeadersContract
   credentials?: FetchDriverCredentialConfigEnum | undefined
   signal?: AbortSignal | undefined
-  body?: string | FormData | Blob | ArrayBuffer | ArrayBufferView | URLSearchParams | undefined
+  body?: BodyContent | URLSearchParams | undefined
 }
 
 export class FetchDriver implements RequestDriverContract {

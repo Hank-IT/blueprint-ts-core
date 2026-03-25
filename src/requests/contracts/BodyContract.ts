@@ -1,7 +1,9 @@
 import { type HeadersContract } from './HeadersContract'
 
+export type BodyContent = string | FormData | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
+
 export interface BodyContract {
-  getContent(): string | FormData
+  getContent(): BodyContent
 
   getHeaders(): HeadersContract
 }

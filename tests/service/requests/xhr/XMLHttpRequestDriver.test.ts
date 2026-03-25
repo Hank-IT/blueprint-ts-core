@@ -3,10 +3,10 @@ import { XMLHttpRequestDriver } from '../../../../src/requests/drivers/xhr/XMLHt
 import { XMLHttpRequestResponse } from '../../../../src/requests/drivers/xhr/XMLHttpRequestResponse'
 import { RequestMethodEnum } from '../../../../src/requests/RequestMethod.enum'
 import { ResponseException } from '../../../../src/requests/exceptions/ResponseException'
-import type { BodyContract } from '../../../../src/requests/contracts/BodyContract'
+import type { BodyContent, BodyContract } from '../../../../src/requests/contracts/BodyContract'
 
-const createBody = (content: string): BodyContract => ({
-  getHeaders: () => ({ 'Content-Type': 'application/json' }),
+const createBody = (content: BodyContent, headers: Record<string, string> = { 'Content-Type': 'application/json' }): BodyContract => ({
+  getHeaders: () => headers,
   getContent: () => content,
 })
 
@@ -146,6 +146,25 @@ describe('XMLHttpRequestDriver', () => {
     await promise
 
     expect(request.sentBody).toBeUndefined()
+  })
+
+  it('passes typed array bodies through to xhr unchanged', async () => {
+    const driver = new XMLHttpRequestDriver()
+    const chunk = new Uint8Array([1, 2, 3, 4])
+
+    const promise = driver.send(
+      'https://example.com',
+      RequestMethodEnum.PUT,
+      {},
+      createBody(chunk, { 'Content-Type': 'application/octet-stream' })
+    )
+
+    const request = MockXMLHttpRequest.instances[0]
+    request.triggerLoad()
+
+    await promise
+
+    expect(request.sentBody).toBe(chunk)
   })
 
   it('throws ResponseException when the response status is not ok', async () => {

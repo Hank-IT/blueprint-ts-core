@@ -10,7 +10,7 @@ export class XMLHttpRequestResponse implements ResponseHandlerContract {
     this.response = new Response(this.getResponseBody(), {
       status: request.status,
       statusText: request.statusText,
-      headers: Object.entries(this.headers).map(([key, value]) => [key, String(value)])
+      headers: this.headers
     })
   }
 

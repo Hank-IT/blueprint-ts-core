@@ -6,25 +6,87 @@
     "access": "public"
   },
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
-    "./pagination": "./src/pagination/index.ts",
-    "./support": "./src/support/index.ts",
-    "./requests": "./src/requests/index.ts",
-    "./bulkRequests": "./src/bulkRequests/index.ts",
-    "./persistenceDrivers": "./src/persistenceDrivers/index.ts",
-    "./requests/exceptions": "./src/requests/exceptions/index.ts",
-    "./laravel/requests": "./src/laravel/requests/index.ts",
-    "./laravel/pagination": "./src/laravel/pagination/index.ts",
-    "./vue": "./src/vue/index.ts",
-    "./vue/forms": "./src/vue/forms/index.ts",
-    "./vue/forms/validation": "./src/vue/forms/validation/index.ts",
-    "./vue/requests": "./src/vue/requests/index.ts",
-    "./vue/router/routeResourceBinding": "./src/vue/router/routeResourceBinding/index.ts",
-    "./vue/state": "./src/vue/state/index.ts"
+    "./pagination": {
+      "types": "./dist/pagination/index.d.ts",
+      "import": "./dist/pagination/index.js",
+      "default": "./dist/pagination/index.js"
+    },
+    "./support": {
+      "types": "./dist/support/index.d.ts",
+      "import": "./dist/support/index.js",
+      "default": "./dist/support/index.js"
+    },
+    "./requests": {
+      "types": "./dist/requests/index.d.ts",
+      "import": "./dist/requests/index.js",
+      "default": "./dist/requests/index.js"
+    },
+    "./bulkRequests": {
+      "types": "./dist/bulkRequests/index.d.ts",
+      "import": "./dist/bulkRequests/index.js",
+      "default": "./dist/bulkRequests/index.js"
+    },
+    "./persistenceDrivers": {
+      "types": "./dist/persistenceDrivers/index.d.ts",
+      "import": "./dist/persistenceDrivers/index.js",
+      "default": "./dist/persistenceDrivers/index.js"
+    },
+    "./requests/exceptions": {
+      "types": "./dist/requests/exceptions/index.d.ts",
+      "import": "./dist/requests/exceptions/index.js",
+      "default": "./dist/requests/exceptions/index.js"
+    },
+    "./laravel/requests": {
+      "types": "./dist/laravel/requests/index.d.ts",
+      "import": "./dist/laravel/requests/index.js",
+      "default": "./dist/laravel/requests/index.js"
+    },
+    "./laravel/pagination": {
+      "types": "./dist/laravel/pagination/index.d.ts",
+      "import": "./dist/laravel/pagination/index.js",
+      "default": "./dist/laravel/pagination/index.js"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.ts",
+      "import": "./dist/vue/index.js",
+      "default": "./dist/vue/index.js"
+    },
+    "./vue/forms": {
+      "types": "./dist/vue/forms/index.d.ts",
+      "import": "./dist/vue/forms/index.js",
+      "default": "./dist/vue/forms/index.js"
+    },
+    "./vue/forms/validation": {
+      "types": "./dist/vue/forms/validation/index.d.ts",
+      "import": "./dist/vue/forms/validation/index.js",
+      "default": "./dist/vue/forms/validation/index.js"
+    },
+    "./vue/requests": {
+      "types": "./dist/vue/requests/index.d.ts",
+      "import": "./dist/vue/requests/index.js",
+      "default": "./dist/vue/requests/index.js"
+    },
+    "./vue/router/routeResourceBinding": {
+      "types": "./dist/vue/router/routeResourceBinding/index.d.ts",
+      "import": "./dist/vue/router/routeResourceBinding/index.js",
+      "default": "./dist/vue/router/routeResourceBinding/index.js"
+    },
+    "./vue/state": {
+      "types": "./dist/vue/state/index.d.ts",
+      "import": "./dist/vue/state/index.js",
+      "default": "./dist/vue/state/index.js"
+    }
   },
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "build": "run-p type-check build:package \"build-only {@}\" --",
+    "build:package": "tsc -p tsconfig.build.json",
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
@@ -34,15 +96,11 @@
     "format": "prettier --check src/",
     "format:fix": "prettier --write src/",
     "type-check": "tsc --noEmit",
+    "type-check:consumer-fixture": "npx --yes -p typescript@5.4.5 tsc -p ./tests/fixtures/consumer/tsconfig.json --pretty false",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
-  },
-  "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "*",
-    "@rollup/rollup-linux-x64-musl": "*",
-    "@rollup/rollup-win32-x64-gnu": "*",
-    "@rollup/rollup-win32-x64-musl": "*"
+    "docs:preview": "vitepress preview docs",
+    "prepare": "npm run build:package"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.3.3",

@@ -132,6 +132,8 @@ describe('XMLHttpRequestDriver', () => {
       lengthComputable: true,
       progress: 0.5,
     })
+    expect(result.getHeaders()).toEqual({ 'X-Response': 'yes' })
+    expect(result.getRawResponse().headers.get('X-Response')).toBe('yes')
     await expect(result.json()).resolves.toEqual({ ok: true })
   })
 

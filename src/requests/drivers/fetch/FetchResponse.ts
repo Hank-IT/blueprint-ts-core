@@ -1,4 +1,4 @@
-import { type HeadersContract } from '../../contracts/HeadersContract'
+import { type ResolvedHeadersContract } from '../../contracts/HeadersContract'
 import { type ResponseHandlerContract } from '../contracts/ResponseHandlerContract'
 
 export class FetchResponse implements ResponseHandlerContract {
@@ -8,7 +8,7 @@ export class FetchResponse implements ResponseHandlerContract {
     return this.response.status
   }
 
-  public getHeaders(): HeadersContract {
+  public getHeaders(): ResolvedHeadersContract {
     return Object.fromEntries(this.response.headers)
   }
 

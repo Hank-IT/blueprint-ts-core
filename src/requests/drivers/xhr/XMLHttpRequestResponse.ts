@@ -1,9 +1,9 @@
-import { type HeadersContract } from '../../contracts/HeadersContract'
+import { type ResolvedHeadersContract } from '../../contracts/HeadersContract'
 import { type ResponseHandlerContract } from '../contracts/ResponseHandlerContract'
 
 export class XMLHttpRequestResponse implements ResponseHandlerContract {
   protected response: Response
-  protected headers: HeadersContract
+  protected headers: ResolvedHeadersContract
 
   public constructor(protected request: XMLHttpRequest) {
     this.headers = this.parseHeaders(request.getAllResponseHeaders())
@@ -18,7 +18,7 @@ export class XMLHttpRequestResponse implements ResponseHandlerContract {
     return this.request.status
   }
 
-  public getHeaders(): HeadersContract {
+  public getHeaders(): ResolvedHeadersContract {
     return this.headers
   }
 
@@ -65,8 +65,8 @@ export class XMLHttpRequestResponse implements ResponseHandlerContract {
     )
   }
 
-  protected parseHeaders(rawHeaders: string): HeadersContract {
-    const headers: HeadersContract = {}
+  protected parseHeaders(rawHeaders: string): ResolvedHeadersContract {
+    const headers: ResolvedHeadersContract = {}
     const lines = rawHeaders.trim()
 
     if (lines.length === 0) {

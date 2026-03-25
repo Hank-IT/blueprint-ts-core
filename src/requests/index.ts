@@ -23,7 +23,7 @@ import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandle
 import { type BaseRequestContract } from './contracts/BaseRequestContract'
 import { ResponseException } from './exceptions/ResponseException'
 import { StaleResponseException } from './exceptions/StaleResponseException'
-import { type HeaderValue, type HeadersContract } from './contracts/HeadersContract'
+import { type HeaderValue, type HeadersContract, type ResolvedHeadersContract } from './contracts/HeadersContract'
 import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
 import { type RequestUploadProgress } from './types/RequestUploadProgress'
 import { XMLHttpRequestDriver } from './drivers/xhr/XMLHttpRequestDriver'
@@ -62,6 +62,7 @@ export type {
   BaseRequestContract,
   HeaderValue,
   HeadersContract,
+  ResolvedHeadersContract,
   RequestConcurrencyOptions,
   RequestUploadProgress
 }

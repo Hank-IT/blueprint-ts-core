@@ -1,5 +1,5 @@
 import { type ResponseHandlerContract } from '../drivers/contracts/ResponseHandlerContract'
-import { type HeadersContract } from '../contracts/HeadersContract'
+import { type ResolvedHeadersContract } from '../contracts/HeadersContract'
 import { type ResponseContract } from '../contracts/ResponseContract'
 
 export abstract class BaseResponse<ResponseInterface> implements ResponseContract<ResponseInterface> {
@@ -27,7 +27,7 @@ export abstract class BaseResponse<ResponseInterface> implements ResponseContrac
     return this.response?.getStatusCode()
   }
 
-  public getHeaders(): HeadersContract | undefined {
+  public getHeaders(): ResolvedHeadersContract | undefined {
     return this.response?.getHeaders()
   }
 

@@ -1,3 +1,16 @@
+## 4.1.0-beta.2 - 2026-03-25 (beta)
+
+# [4.1.0-beta.2](/compare/4.1.0-beta.1...4.1.0-beta.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* Tighten response header typing f767572
+
+
+### Features
+
+* Support Blob and ArrayBuffer bodies a265df3
 ## 4.1.0-beta.1 - 2026-03-21 (beta)
 
 # [4.1.0-beta.1](/compare/v4.0.0...v4.1.0-beta.1) (2026-03-21)

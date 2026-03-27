@@ -108,6 +108,36 @@ class NestedBehaviorForm extends BaseForm<NestedFormRequestBody, NestedFormState
   }
 }
 
+class NestedBehaviorTwoStepForm extends BaseForm<NestedFormRequestBody, NestedFormState> {
+  public constructor() {
+    super(
+      {
+        payload: new PropertyAwareObject({
+          command: '',
+          interpreter: 'powershell'
+        }),
+        steps: new PropertyAwareArray([
+          {
+            name: 'first',
+            payload: new PropertyAwareObject({
+              command: '',
+              interpreter: 'bash'
+            })
+          },
+          {
+            name: 'second',
+            payload: new PropertyAwareObject({
+              command: '',
+              interpreter: 'bash'
+            })
+          }
+        ])
+      },
+      { persist: false }
+    )
+  }
+}
+
 describe('BaseForm behavior', () => {
   it('tracks dirty and touched on simple fields', () => {
     const form = new BehaviorForm()
@@ -277,5 +307,33 @@ describe('BaseForm behavior', () => {
 
     expect(form.properties.steps[0].payload.command.dirty).toBe(true)
     expect(form.isDirty('steps')).toBe(true)
+  })
+
+  it('clears only the edited nested array-item error path and preserves sibling errors', () => {
+    const form = new NestedBehaviorTwoStepForm()
+
+    form.fillErrors({
+      'steps.0.payload.command': ['First step command required'],
+      'steps.1.payload.command': ['Second step command required']
+    })
+
+    form.properties.steps[0].payload.command.model.value = 'fixed'
+
+    expect(form.properties.steps[0].payload.command.errors).toEqual([])
+    expect(form.properties.steps[1].payload.command.errors).toEqual(['Second step command required'])
+  })
+
+  it('clears only the edited nested object error path and preserves sibling errors', () => {
+    const form = new NestedBehaviorForm()
+
+    form.fillErrors({
+      'payload.command': ['Top level command required'],
+      'payload.interpreter': ['Interpreter required']
+    })
+
+    form.properties.payload.command.model.value = 'fixed'
+
+    expect(form.properties.payload.command.errors).toEqual([])
+    expect(form.properties.payload.interpreter.errors).toEqual(['Interpreter required'])
   })
 })

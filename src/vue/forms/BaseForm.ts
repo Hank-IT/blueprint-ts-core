@@ -68,7 +68,7 @@ function isErrorMessages(value: unknown): value is ErrorMessages {
 }
 
 function isErrorArray(value: unknown): value is ErrorArray {
-  return Array.isArray(value) && value.length > 0 && isRecord(value[0])
+  return Array.isArray(value) && value.some((item) => isRecord(item))
 }
 
 function isErrorObject(value: unknown): value is ErrorObject {
@@ -677,6 +677,39 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     this.applyErrors(preservedErrors, false)
   }
 
+  private collectSiblingNestedErrors(field: keyof FormBody, path: string[]): Record<string, ErrorMessages> {
+    if (path.length === 0) {
+      return {}
+    }
+
+    const fieldKey = String(field)
+    const clearedPath = `${fieldKey}.${path.join('.')}`
+    const preservedErrors: Record<string, ErrorMessages> = {}
+
+    for (const [errorKey, errorValue] of Object.entries(this.flattenErrors())) {
+      if (!this.matchesValidationGroupPath(errorKey, fieldKey)) {
+        continue
+      }
+
+      if (errorKey === clearedPath || errorKey.startsWith(`${clearedPath}.`)) {
+        continue
+      }
+
+      preservedErrors[errorKey] = cloneDeep(errorValue)
+    }
+
+    return preservedErrors
+  }
+
+  private validateFieldPreservingNestedErrors(field: keyof FormBody, path: string[]): void {
+    const preservedErrors = this.collectSiblingNestedErrors(field, path)
+    this.validateField(field)
+
+    if (Object.keys(preservedErrors).length > 0) {
+      this.applyErrors(preservedErrors, false)
+    }
+  }
+
   private getOrCreateErrorArray(key: string): ErrorArray {
     const existing = this._errors[key]
     if (isErrorArray(existing)) {
@@ -978,7 +1011,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     const originalElement = (this.original[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
     this.setArrayDirty(field, index, this.computeDirtyState(updatedElement, originalElement))
     this.touched[field] = true
-    this.validateField(field)
+    this.validateFieldPreservingNestedErrors(field, [String(index), ...path])
     this.validateDependentFields(field)
   }
 
@@ -1552,7 +1585,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             record[last] = newValue
             this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
             this.touched[key] = true
-            this.validateField(key)
+            this.validateFieldPreservingNestedErrors(key, path)
             this.validateDependentFields(key)
           },
           (path) => this.getObjectFieldErrors(String(key), path),

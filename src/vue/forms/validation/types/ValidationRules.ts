@@ -10,7 +10,7 @@ export type ValidationRules<FormBody extends object> = Partial<
     keyof FormBody,
     {
       rules: Rule<FormBody>[]
-      options?: { mode?: ValidationMode }
+      options?: { mode?: ValidationMode; asyncDebounceMs?: number }
     }
   >
 >

@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaseForm, PropertyAwareArray, PropertyAwareObject, SessionStorageDriver } from '../../../src/vue/forms'
-import { RequiredRule, ValidationMode, type ValidationGroups, type ValidationRules } from '../../../src/vue/forms/validation'
+import { PrecognitiveRule, RequiredRule, ValidationMode, type ValidationGroups, type ValidationRules } from '../../../src/vue/forms/validation'
+import { BaseRequest } from '../../../src/requests/BaseRequest'
+import { BaseResponse } from '../../../src/requests/responses/BaseResponse'
+import { JsonBodyFactory } from '../../../src/requests/factories/JsonBodyFactory'
+import { RequestMethodEnum } from '../../../src/requests/RequestMethod.enum'
+import type { RequestDriverContract } from '../../../src/requests/contracts/RequestDriverContract'
+import type { ResponseHandlerContract } from '../../../src/requests/drivers/contracts/ResponseHandlerContract'
 
 interface TestFormState {
   name: string
@@ -30,6 +36,11 @@ interface NestedFormRequestBody {
     name: string
     payload: NestedPayload
   }>
+}
+
+interface AsyncFormState {
+  name: string
+  email: string
 }
 
 class BehaviorForm extends BaseForm<TestFormState, TestFormState> {
@@ -171,7 +182,145 @@ class PersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, Neste
   }
 }
 
+class AsyncValidationResponse extends BaseResponse<undefined> {
+  public getAcceptHeader(): string {
+    return 'application/json'
+  }
+
+  protected resolveBody(): Promise<undefined> {
+    return Promise.resolve(undefined)
+  }
+}
+
+class AsyncValidationRequest extends BaseRequest<
+  unknown,
+  { errors?: Record<string, string[]> },
+  undefined,
+  AsyncValidationResponse,
+  AsyncFormState,
+  object
+> {
+  public method(): RequestMethodEnum {
+    return RequestMethodEnum.POST
+  }
+
+  public url(): string {
+    return '/precognition'
+  }
+
+  public getResponse(): AsyncValidationResponse {
+    return new AsyncValidationResponse()
+  }
+
+  public getRequestBodyFactory(): JsonBodyFactory<AsyncFormState> {
+    return new JsonBodyFactory<AsyncFormState>()
+  }
+}
+
+class AsyncBehaviorForm extends BaseForm<AsyncFormState, AsyncFormState> {
+  public constructor() {
+    super(
+      {
+        name: '',
+        email: ''
+      },
+      { persist: false }
+    )
+  }
+
+  protected override defineRules(): ValidationRules<AsyncFormState> {
+    return {
+      name: {
+        rules: [new PrecognitiveRule(() => new AsyncValidationRequest())],
+        options: { mode: ValidationMode.PASSIVE }
+      },
+      email: {
+        rules: [new RequiredRule('Email is required')],
+        options: { mode: ValidationMode.PASSIVE }
+      }
+    }
+  }
+
+  protected override defineValidationGroups(): ValidationGroups<AsyncFormState> {
+    return {
+      details: ['name'],
+      contact: ['email']
+    }
+  }
+}
+
+class InstantAsyncBehaviorForm extends BaseForm<AsyncFormState, AsyncFormState> {
+  public constructor() {
+    super(
+      {
+        name: '',
+        email: ''
+      },
+      { persist: false }
+    )
+  }
+
+  protected override defineRules(): ValidationRules<AsyncFormState> {
+    return {
+      name: {
+        rules: [new PrecognitiveRule(() => new AsyncValidationRequest())],
+        options: { mode: ValidationMode.INSTANTLY, asyncDebounceMs: 50 }
+      }
+    }
+  }
+}
+
+class TouchAsyncBehaviorForm extends BaseForm<AsyncFormState, AsyncFormState> {
+  public constructor() {
+    super(
+      {
+        name: '',
+        email: ''
+      },
+      { persist: false }
+    )
+  }
+
+  protected override defineRules(): ValidationRules<AsyncFormState> {
+    return {
+      name: {
+        rules: [new PrecognitiveRule(() => new AsyncValidationRequest())],
+        options: { mode: ValidationMode.ON_TOUCH }
+      }
+    }
+  }
+}
+
+function createJsonResponseHandler(statusCode: number, body: Record<string, unknown>): ResponseHandlerContract {
+  return {
+    getStatusCode: () => statusCode,
+    getHeaders: () => ({}),
+    getRawResponse: () => new Response(JSON.stringify(body), { status: statusCode }),
+    json: async <T>() => body as T,
+    text: async () => JSON.stringify(body),
+    blob: async () => new Blob([JSON.stringify(body)], { type: 'application/json' })
+  }
+}
+
+function createEmptyResponseHandler(statusCode: number): ResponseHandlerContract {
+  return {
+    getStatusCode: () => statusCode,
+    getHeaders: () => ({}),
+    getRawResponse: () => new Response(null, { status: statusCode }),
+    json: async <T>() => undefined as T,
+    text: async () => '',
+    blob: async () => new Blob()
+  }
+}
+
 describe('BaseForm behavior', () => {
+  beforeEach(() => {
+    BaseRequest.setDefaultBaseUrl('https://example.com')
+    BaseRequest.setRequestDriver({
+      send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
+    })
+  })
+
   it('tracks dirty and touched on simple fields', () => {
     const form = new BehaviorForm()
 
@@ -383,5 +532,138 @@ describe('BaseForm behavior', () => {
     expect(restoredForm.properties.steps[0].payload.interpreter.model.value).toBe('bash')
 
     sessionStorage.clear()
+  })
+
+  it('runs Precognitive rules asynchronously and clears only targeted async errors on success', async () => {
+    const driver: RequestDriverContract = {
+      send: vi
+        .fn()
+        .mockResolvedValueOnce(createJsonResponseHandler(422, { errors: { name: ['Name is already taken'] } }))
+        .mockResolvedValueOnce(createEmptyResponseHandler(204))
+    }
+
+    BaseRequest.setRequestDriver(driver)
+
+    const form = new AsyncBehaviorForm()
+    form.fillErrors({
+      email: ['Email is invalid']
+    })
+
+    await form.validateFieldAsync('name', { isSubmitting: true })
+
+    const [, , firstHeaders, firstBody] = (driver.send as ReturnType<typeof vi.fn>).mock.calls[0]
+
+    expect(firstHeaders).toMatchObject({
+      Accept: 'application/json',
+      Precognition: 'true',
+      'Precognition-Validate-Only': 'name'
+    })
+    expect(firstBody?.getContent()).toBe('{"name":"","email":""}')
+    expect(form.properties.name.errors).toEqual(['Name is already taken'])
+    expect(form.properties.email.errors).toEqual(['Email is invalid'])
+
+    form.properties.name.model.value = 'Ada'
+
+    await form.validateFieldAsync('name', { isSubmitting: true })
+
+    expect(form.properties.name.errors).toEqual([])
+    expect(form.properties.email.errors).toEqual(['Email is invalid'])
+  })
+
+  it('keeps existing async errors visible while Precognitive validation is in flight', async () => {
+    let resolvePendingResponse: ((value: ResponseHandlerContract) => void) | null = null
+
+    const driver: RequestDriverContract = {
+      send: vi
+        .fn()
+        .mockResolvedValueOnce(createJsonResponseHandler(422, { errors: { name: ['Name is already taken'] } }))
+        .mockImplementationOnce(
+          () =>
+            new Promise<ResponseHandlerContract>((resolve) => {
+              resolvePendingResponse = resolve
+            })
+        )
+    }
+
+    BaseRequest.setRequestDriver(driver)
+
+    const form = new AsyncBehaviorForm()
+
+    await form.validateFieldAsync('name', { isSubmitting: true })
+    expect(form.properties.name.errors).toEqual(['Name is already taken'])
+
+    form.properties.name.model.value = 'Ada'
+
+    const pendingValidation = form.validateFieldAsync('name', { isSubmitting: true })
+
+    expect(form.properties.name.errors).toEqual(['Name is already taken'])
+
+    resolvePendingResponse?.(createEmptyResponseHandler(204))
+    await pendingValidation
+
+    expect(form.properties.name.errors).toEqual([])
+  })
+
+  it('validates only the targeted group asynchronously', async () => {
+    const driver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createJsonResponseHandler(422, { errors: { name: ['Remote name error'] } }))
+    }
+
+    BaseRequest.setRequestDriver(driver)
+
+    const form = new AsyncBehaviorForm()
+    form.fillErrors({
+      email: ['Email is invalid']
+    })
+
+    const ok = await form.validateGroupAsync('details', true)
+
+    expect(ok).toBe(false)
+    expect(form.getErrorsInGroup('details')).toEqual({
+      name: ['Remote name error']
+    })
+    expect(form.getErrorsInGroup('contact')).toEqual({
+      email: ['Email is invalid']
+    })
+  })
+
+  it('automatically runs async validation for instantly validated fields with debounce', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const driver: RequestDriverContract = {
+        send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
+      }
+
+      BaseRequest.setRequestDriver(driver)
+
+      const form = new InstantAsyncBehaviorForm()
+      form.properties.name.model.value = 'Ada'
+
+      expect(driver.send).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(49)
+      expect(driver.send).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(driver.send).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('automatically runs async validation for touch-validated fields when touched', async () => {
+    const driver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
+    }
+
+    BaseRequest.setRequestDriver(driver)
+
+    const form = new TouchAsyncBehaviorForm()
+    form.touch('name')
+
+    await Promise.resolve()
+
+    expect(driver.send).toHaveBeenCalledTimes(1)
   })
 })

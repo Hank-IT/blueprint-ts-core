@@ -120,6 +120,113 @@ form.touchGroup('details')
 
 This marks all top-level fields covered by the group as touched and triggers `ON_TOUCH` validation where applicable.
 
+## Precognitive Rule
+
+Blueprint ships `PrecognitiveRule` for Laravel Precognition flows.
+
+The rule fits into normal `defineRules()` usage and accepts a request factory in its constructor:
+
+```ts
+import { BaseForm } from '@blueprint-ts/core/vue/forms'
+import { PrecognitiveRule, ValidationMode, type ValidationRules } from '@blueprint-ts/core/vue/forms/validation'
+import { CreatePackageRequest } from '@/requests/CreatePackageRequest'
+
+interface PackageFormBody {
+  name: string
+  version: string
+}
+
+export class PackageForm extends BaseForm<PackageFormBody, PackageFormBody> {
+  public constructor() {
+    super({
+      name: '',
+      version: ''
+    })
+  }
+
+  protected override defineRules(): ValidationRules<PackageFormBody> {
+    return {
+      name: {
+        rules: [
+          new PrecognitiveRule(() => new CreatePackageRequest(), {
+            validateOnly: ['name', 'version']
+          })
+        ],
+        options: { mode: ValidationMode.ON_TOUCH, asyncDebounceMs: 300 }
+      }
+    }
+  }
+}
+```
+
+### Running Async Validation
+
+You can still call the async validation methods explicitly when you want to await the result:
+
+```ts
+await form.validateFieldAsync('name', { isSubmitting: true })
+await form.validateGroupAsync('details', true)
+await form.validateAsync(true)
+```
+
+The returned errors are merged into the normal form error bag, so field access stays the same:
+
+```ts
+form.properties.name.errors
+form.getErrors()
+form.getErrorsInGroup('details')
+```
+
+### How The Rule Works
+
+`PrecognitiveRule` sends the current `buildPayload()` result with the standard Laravel Precognition headers:
+
+- `Precognition: true`
+- `Precognition-Validate-Only: field1,field2`
+
+By default the rule validates only the current field. You can override this with `validateOnly` when the backend rule depends on multiple fields.
+
+### Async Rules And Validation Modes
+
+Async rules now honor the same `ValidationMode` flags as sync rules.
+
+That means a field with async rules can be triggered automatically by:
+
+- `ValidationMode.INSTANTLY`
+- `ValidationMode.ON_TOUCH`
+- `ValidationMode.ON_DIRTY`
+- `ValidationMode.ON_DEPENDENT_CHANGE`
+
+Use `asyncDebounceMs` when the async rule should not fire immediately on every update:
+
+```ts
+name: {
+  rules: [new PrecognitiveRule(() => new CreatePackageRequest())],
+  options: {
+    mode: ValidationMode.INSTANTLY,
+    asyncDebounceMs: 300
+  }
+}
+```
+
+`ValidationMode.ON_SUBMIT` also schedules async validation when submit-mode validation runs. If you need to await those remote results directly, use `validateAsync(true)` or `validateGroupAsync(group, true)`.
+
+### Current Behavior
+
+The current implementation supports:
+
+- it can be triggered automatically by validation modes for field-level updates
+- it can also be triggered explicitly by the async methods (`validateFieldAsync`, `validateGroupAsync`, `validateAsync`)
+- it merges remote validation errors into the same form error bag used by local validation
+- it keeps existing async errors visible until the latest remote check completes
+- it ignores stale async responses when a newer validation run for the same field has already been scheduled
+
+It does not currently provide:
+
+- full request cancellation at the transport layer
+- automatic async group orchestration beyond the existing `validateGroupAsync(...)` calls
+- special UI state such as `isRemoteValidating`
+
 ## Typing `defineRules`
 
 Use `ValidationRules<FormBody>` for a concise, strongly-typed return type:

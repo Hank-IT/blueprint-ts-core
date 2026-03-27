@@ -1,10 +1,11 @@
 import { reactive, computed, toRaw, type ComputedRef, type WritableComputedRef, watch } from 'vue'
-import { camelCase, upperFirst, cloneDeep, isEqual } from 'lodash-es'
+import { camelCase, upperFirst, cloneDeep, debounce, isEqual, type DebouncedFunc } from 'lodash-es'
 import { type PersistedForm } from './types/PersistedForm'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray, type PropertyAwareField } from './PropertyAwareArray'
 import { PropertyAwareObject, PROPERTY_AWARE_OBJECT_MARKER } from './PropertyAwareObject'
+import { BaseRule } from './validation/rules/BaseRule'
 import { ValidationMode, type ValidationGroups, type ValidationRules } from './validation'
 
 interface DirtyObject {
@@ -56,6 +57,18 @@ type FormProperties<FormBody extends object> = {
     : FormBody[K] extends PropertyAwareObject<infer Shape>
       ? ObjectProperty<Shape>
       : FieldProperty<FormBody[K]>
+}
+
+interface ValidationContext {
+  isDirty?: boolean
+  isSubmitting?: boolean
+  isDependentChange?: boolean
+  isTouched?: boolean
+}
+
+interface AsyncValidationContext extends ValidationContext {
+  skipSyncValidation?: boolean
+  skipAsyncValidation?: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -276,6 +289,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   private readonly original: FormBody
   private readonly _model: { [K in keyof FormBody]: WritableComputedRef<FormBody[K]> }
   private _errors: ErrorBag = reactive<ErrorBag>({})
+  private _asyncErrors: ErrorBag = reactive<ErrorBag>({})
   private _hasErrors: ComputedRef<boolean>
   protected append: string[] = []
   protected ignore: string[] = []
@@ -287,6 +301,9 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   private fieldDependencies: Map<keyof FormBody, Set<keyof FormBody>> = new Map()
   private readonly arrayWrapperCache = new Map<keyof FormBody, Array<unknown>>()
   private readonly arrayItemWrapperCache = new Map<keyof FormBody, WeakMap<object, Record<string, unknown>>>()
+  private readonly asyncValidationDebouncers = new Map<keyof FormBody, DebouncedFunc<() => void>>()
+  private readonly pendingAsyncValidationContexts = new Map<keyof FormBody, { token: number; context: ValidationContext }>()
+  private readonly asyncValidationTokens = reactive<Record<string, number>>({})
 
   /**
    * Returns the persistence driver to use.
@@ -525,31 +542,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     }
 
-    this._hasErrors = computed(() => {
-      for (const field in this._errors) {
-        if (Object.prototype.hasOwnProperty.call(this._errors, field)) {
-          const fieldErrors = this._errors[field]
-
-          if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
-            return true
-          }
-
-          if (fieldErrors && typeof fieldErrors === 'object') {
-            if (Array.isArray(fieldErrors)) {
-              for (const item of fieldErrors) {
-                if (item && typeof item === 'object' && Object.keys(item).length > 0) {
-                  return true
-                }
-              }
-            } else if (Object.keys(fieldErrors).length > 0) {
-              return true
-            }
-          }
-        }
-      }
-
-      return false
-    })
+    this._hasErrors = computed(() => Object.keys(this.flattenErrors()).length > 0)
 
     if (persist) {
       watch(
@@ -570,10 +563,96 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return {}
   }
 
-  private clearErrors(): void {
-    for (const key in this._errors) {
-      delete this._errors[key]
+  private clearErrorBag(errorBag: ErrorBag): void {
+    for (const key in errorBag) {
+      delete errorBag[key]
     }
+  }
+
+  private clearSyncErrors(): void {
+    this.clearErrorBag(this._errors)
+  }
+
+  private clearAsyncErrors(): void {
+    this.clearErrorBag(this._asyncErrors)
+  }
+
+  private clearErrors(): void {
+    this.cancelPendingAsyncValidations()
+    this.clearSyncErrors()
+    this.clearAsyncErrors()
+  }
+
+  private hasAsyncRules(field: keyof FormBody): boolean {
+    const fieldConfig = this.rules[field]
+    if (!fieldConfig?.rules || fieldConfig.rules.length === 0) {
+      return false
+    }
+
+    return fieldConfig.rules.some((rule) => rule.validateAsync !== BaseRule.prototype.validateAsync)
+  }
+
+  private bumpAsyncValidationToken(field: keyof FormBody): number {
+    const fieldKey = String(field)
+    const nextToken = (this.asyncValidationTokens[fieldKey] ?? 0) + 1
+    this.asyncValidationTokens[fieldKey] = nextToken
+
+    return nextToken
+  }
+
+  private cancelPendingAsyncValidations(): void {
+    for (const debouncer of this.asyncValidationDebouncers.values()) {
+      debouncer.cancel()
+    }
+
+    this.pendingAsyncValidationContexts.clear()
+
+    for (const fieldKey of Object.keys(this.asyncValidationTokens)) {
+      this.asyncValidationTokens[fieldKey] = (this.asyncValidationTokens[fieldKey] ?? 0) + 1
+    }
+  }
+
+  private scheduleAsyncValidation(field: keyof FormBody, context: ValidationContext): void {
+    if (!this.hasAsyncRules(field)) {
+      return
+    }
+
+    const token = this.bumpAsyncValidationToken(field)
+    const debounceMs = this.rules[field]?.options?.asyncDebounceMs ?? 0
+
+    this.pendingAsyncValidationContexts.set(field, { token, context })
+
+    if (debounceMs <= 0) {
+      void this.executeScheduledAsyncValidation(field).catch(() => undefined)
+      return
+    }
+
+    let debouncer = this.asyncValidationDebouncers.get(field)
+    if (debouncer === undefined) {
+      debouncer = debounce(() => {
+        void this.executeScheduledAsyncValidation(field).catch(() => undefined)
+      }, debounceMs)
+      this.asyncValidationDebouncers.set(field, debouncer)
+    }
+
+    debouncer()
+  }
+
+  private async executeScheduledAsyncValidation(field: keyof FormBody): Promise<void> {
+    const pending = this.pendingAsyncValidationContexts.get(field)
+    if (pending === undefined) {
+      return
+    }
+
+    await this.runFieldAsyncValidation(
+      field,
+      {
+        ...pending.context,
+        skipSyncValidation: true,
+        skipAsyncValidation: true
+      },
+      pending.token
+    )
   }
 
   private flattenErrorValue(value: FieldErrors | undefined, path: string, flattened: Record<string, ErrorMessages>): void {
@@ -622,17 +701,45 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  private flattenErrors(): Record<string, ErrorMessages> {
+  private flattenErrorsFromBag(errorBag: ErrorBag): Record<string, ErrorMessages> {
     const flattened: Record<string, ErrorMessages> = {}
 
-    for (const key of Object.keys(this._errors)) {
-      this.flattenErrorValue(this._errors[key], key, flattened)
+    for (const key of Object.keys(errorBag)) {
+      this.flattenErrorValue(errorBag[key], key, flattened)
     }
 
     return flattened
   }
 
-  private applyErrors<ErrorInterface extends Record<string, FieldErrors>>(errorsData: ErrorInterface, useErrorMap: boolean): void {
+  private mergeErrorMessages(...messageSets: ErrorMessages[]): ErrorMessages {
+    const merged: ErrorMessages = []
+
+    for (const messages of messageSets) {
+      for (const message of messages) {
+        if (!merged.includes(message)) {
+          merged.push(message)
+        }
+      }
+    }
+
+    return merged
+  }
+
+  private flattenErrors(): Record<string, ErrorMessages> {
+    const flattened = this.flattenErrorsFromBag(this._errors)
+
+    for (const [key, messages] of Object.entries(this.flattenErrorsFromBag(this._asyncErrors))) {
+      flattened[key] = this.mergeErrorMessages(flattened[key] ?? [], messages)
+    }
+
+    return flattened
+  }
+
+  private applyErrors<ErrorInterface extends Record<string, FieldErrors>>(
+    errorsData: ErrorInterface,
+    useErrorMap: boolean,
+    targetBag: ErrorBag = this._errors
+  ): void {
     for (const serverKey in errorsData) {
       if (!Object.prototype.hasOwnProperty.call(errorsData, serverKey)) {
         continue
@@ -659,19 +766,19 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           const indexPart = parts[1] ?? ''
           const index = Number.parseInt(indexPart, 10)
           if (!topKey) {
-            this._errors[targetKey] = errorMessage
+            targetBag[targetKey] = errorMessage
             continue
           }
 
           if (!Number.isFinite(index)) {
-            const current = isErrorObject(this._errors[topKey]) ? this._errors[topKey] : {}
-            this._errors[topKey] = current
+            const current = isErrorObject(targetBag[topKey]) ? targetBag[topKey] : {}
+            targetBag[topKey] = current
             this.setNestedError(current, parts.slice(1), errorMessage)
             continue
           }
 
           const errorSubKey = parts.slice(2).join('.')
-          const errors = this.getOrCreateErrorArray(topKey)
+          const errors = this.getOrCreateErrorArray(topKey, targetBag)
           const errorObject = this.getOrCreateErrorObject(errors, index)
 
           if (errorSubKey.length === 0) {
@@ -680,7 +787,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             this.setNestedError(errorObject, errorSubKey.split('.'), errorMessage)
           }
         } else {
-          this._errors[targetKey] = errorMessage
+          targetBag[targetKey] = errorMessage
         }
       }
     }
@@ -772,14 +879,27 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  private getOrCreateErrorArray(key: string): ErrorArray {
-    const existing = this._errors[key]
+  private clearErrorBagPaths(errorBag: ErrorBag, paths: string[]): void {
+    const preservedErrors: Record<string, ErrorMessages> = {}
+
+    for (const [errorKey, errorValue] of Object.entries(this.flattenErrorsFromBag(errorBag))) {
+      if (!paths.some((path) => this.matchesValidationGroupPath(errorKey, path))) {
+        preservedErrors[errorKey] = cloneDeep(errorValue)
+      }
+    }
+
+    this.clearErrorBag(errorBag)
+    this.applyErrors(preservedErrors, false, errorBag)
+  }
+
+  private getOrCreateErrorArray(key: string, errorBag: ErrorBag = this._errors): ErrorArray {
+    const existing = errorBag[key]
     if (isErrorArray(existing)) {
       return existing
     }
 
     const next: ErrorArray = []
-    this._errors[key] = next
+    errorBag[key] = next
     return next
   }
 
@@ -795,8 +915,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   private getFieldErrors(field: string): ErrorMessages {
-    const errors = this._errors[field]
-    return isErrorMessages(errors) ? errors : []
+    const syncErrors = this._errors[field]
+    const asyncErrors = this._asyncErrors[field]
+
+    return this.mergeErrorMessages(isErrorMessages(syncErrors) ? syncErrors : [], isErrorMessages(asyncErrors) ? asyncErrors : [])
   }
 
   private getOrCreateFieldErrors(field: string): ErrorMessages {
@@ -820,31 +942,53 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   private getArrayItemFieldErrors(field: string, index: number, innerKey: string): ErrorMessages {
-    const itemErrors = this.getArrayItemErrors(field, index)
-    if (!itemErrors) {
-      return []
-    }
-    return this.getNestedErrorMessagesFromValue(itemErrors, innerKey.split('.'))
+    return this.mergeErrorMessages(
+      this.getNestedErrorMessagesFromValue(this.getArrayItemErrors(field, index), innerKey.split('.')),
+      this.getNestedErrorMessagesFromValue(this.getArrayItemErrorsFromBag(this._asyncErrors, field, index), innerKey.split('.'))
+    )
   }
 
   private getArrayItemErrorMessages(field: string, index: number): ErrorMessages {
-    const errors = this._errors[field]
+    return this.mergeErrorMessages(
+      this.getArrayItemErrorMessagesFromBag(this._errors, field, index),
+      this.getArrayItemErrorMessagesFromBag(this._asyncErrors, field, index)
+    )
+  }
+
+  private getObjectFieldErrors(field: string, path: string[]): ErrorMessages {
+    return this.mergeErrorMessages(
+      this.getNestedErrorMessagesFromValue(this._errors[field], path),
+      this.getNestedErrorMessagesFromValue(this._asyncErrors[field], path)
+    )
+  }
+
+  private getArrayItemErrorsFromBag(errorBag: ErrorBag, field: string, index: number): ErrorObject | undefined {
+    const errors = errorBag[field]
+    if (!isErrorArray(errors)) {
+      return undefined
+    }
+
+    const item = errors[index]
+    return isErrorObject(item) ? item : undefined
+  }
+
+  private getArrayItemErrorMessagesFromBag(errorBag: ErrorBag, field: string, index: number): ErrorMessages {
+    const errors = errorBag[field]
     if (!Array.isArray(errors)) {
       return []
     }
+
     const item = errors[index]
     if (isErrorMessages(item)) {
       return item
     }
+
     if (isErrorObject(item)) {
       const nestedErrors = item['']
       return isErrorMessages(nestedErrors) ? nestedErrors : []
     }
-    return []
-  }
 
-  private getObjectFieldErrors(field: string, path: string[]): ErrorMessages {
-    return this.getNestedErrorMessagesFromValue(this._errors[field], path)
+    return []
   }
 
   private setArrayDirty(field: keyof FormBody, index: number, value: DirtyState): void {
@@ -1246,15 +1390,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return !!this.touched[field]
   }
 
-  protected validateField(
-    field: keyof FormBody,
-    context: {
-      isDirty?: boolean
-      isSubmitting?: boolean
-      isDependentChange?: boolean
-      isTouched?: boolean
-    } = {}
-  ): void {
+  protected validateField(field: keyof FormBody, context: AsyncValidationContext = {}): void {
     const emptyErrors: ErrorMessages = []
     const errorKey = String(field)
     this._errors[errorKey] = emptyErrors
@@ -1285,20 +1421,25 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           this.getOrCreateFieldErrors(errorKey).push(rule.getMessage())
         }
       }
+
+      if (!context.skipAsyncValidation) {
+        this.scheduleAsyncValidation(field, context)
+      }
     }
   }
 
-  public validate(isSubmitting: boolean = false): boolean {
+  public validate(isSubmitting: boolean = false, options: { skipAsyncValidation?: boolean } = {}): boolean {
     let isValid = true
 
-    this.clearErrors()
+    this.clearSyncErrors()
 
     for (const field in this.rules) {
       if (Object.prototype.hasOwnProperty.call(this.rules, field)) {
         this.validateField(field as keyof FormBody, {
           isSubmitting,
           isDependentChange: false,
-          isTouched: this.isTouched(field as keyof FormBody)
+          isTouched: this.isTouched(field as keyof FormBody),
+          skipAsyncValidation: options.skipAsyncValidation ?? false
         })
 
         const fieldErrors = this._errors[String(field)]
@@ -1311,7 +1452,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return isValid
   }
 
-  public validateGroup(group: string, isSubmitting: boolean = false): boolean {
+  public validateGroup(group: string, isSubmitting: boolean = false, options: { skipAsyncValidation?: boolean } = {}): boolean {
     const fields = this.getValidationGroupFields(group)
     if (fields.length === 0) {
       return true
@@ -1323,11 +1464,101 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       this.validateField(field, {
         isSubmitting,
         isDependentChange: false,
-        isTouched: this.isTouched(field)
+        isTouched: this.isTouched(field),
+        skipAsyncValidation: options.skipAsyncValidation ?? false
       })
     }
 
     return !this.hasErrorsInGroup(group)
+  }
+
+  private async runFieldAsyncValidation(field: keyof FormBody, context: AsyncValidationContext = {}, expectedToken?: number): Promise<boolean> {
+    if (!context.skipSyncValidation) {
+      this.validateField(field, {
+        ...context,
+        skipAsyncValidation: true
+      })
+    }
+
+    const fieldConfig = this.rules[field]
+    if (!fieldConfig?.rules || fieldConfig.rules.length === 0) {
+      return !Object.keys(this.flattenErrors()).some((errorKey) => this.matchesValidationGroupPath(errorKey, String(field)))
+    }
+
+    const asyncPaths = fieldConfig.rules.flatMap((rule) => rule.getAsyncValidationPaths(field, this.state))
+    const payload = this.buildPayload() as Record<string, unknown>
+    const nextAsyncErrors: ErrorBag = {}
+
+    for (const rule of fieldConfig.rules) {
+      const errors = await rule.validateAsync(this.state[field], this.state, {
+        field: String(field),
+        payload,
+        isSubmitting: context.isSubmitting ?? false
+      })
+
+      if (errors && Object.keys(errors).length > 0) {
+        this.applyErrors(errors as Record<string, FieldErrors>, false, nextAsyncErrors)
+      }
+    }
+
+    if (expectedToken !== undefined && this.asyncValidationTokens[String(field)] !== expectedToken) {
+      return !Object.keys(this.flattenErrors()).some((errorKey) => this.matchesValidationGroupPath(errorKey, String(field)))
+    }
+
+    this.clearErrorBagPaths(this._asyncErrors, asyncPaths)
+    for (const [key, messages] of Object.entries(this.flattenErrorsFromBag(nextAsyncErrors))) {
+      this.applyErrors({ [key]: messages }, false, this._asyncErrors)
+    }
+
+    return !Object.keys(this.flattenErrors()).some((errorKey) => this.matchesValidationGroupPath(errorKey, String(field)))
+  }
+
+  public async validateFieldAsync(field: keyof FormBody, context: AsyncValidationContext = {}): Promise<boolean> {
+    const token = this.bumpAsyncValidationToken(field)
+
+    return await this.runFieldAsyncValidation(
+      field,
+      {
+        ...context,
+        skipAsyncValidation: true
+      },
+      token
+    )
+  }
+
+  public async validateAsync(isSubmitting: boolean = false): Promise<boolean> {
+    const isSyncValid = this.validate(isSubmitting, { skipAsyncValidation: true })
+
+    for (const field in this.rules) {
+      if (Object.prototype.hasOwnProperty.call(this.rules, field)) {
+        await this.validateFieldAsync(field as keyof FormBody, {
+          isSubmitting,
+          isTouched: this.isTouched(field as keyof FormBody),
+          skipSyncValidation: true
+        })
+      }
+    }
+
+    return isSyncValid && !this.hasErrors()
+  }
+
+  public async validateGroupAsync(group: string, isSubmitting: boolean = false): Promise<boolean> {
+    const fields = this.getValidationGroupFields(group)
+    if (fields.length === 0) {
+      return true
+    }
+
+    const isSyncValid = this.validateGroup(group, isSubmitting, { skipAsyncValidation: true })
+
+    for (const field of fields) {
+      await this.validateFieldAsync(field, {
+        isSubmitting,
+        isTouched: this.isTouched(field),
+        skipSyncValidation: true
+      })
+    }
+
+    return isSyncValid && !this.hasErrorsInGroup(group)
   }
 
   public touchGroup(group: string): void {
@@ -1527,9 +1758,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         this.touched[key as keyof FormBody] = false
       }
     }
-    for (const key in this._errors) {
-      delete this._errors[key]
-    }
+    this.clearErrors()
     this.persistState(driver)
 
     this.validate()

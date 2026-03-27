@@ -11,7 +11,7 @@ import { type BodyContract } from './contracts/BodyContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
 import { type RequestDriverContract } from './contracts/RequestDriverContract'
 import { type RequestLoaderFactoryContract } from './contracts/RequestLoaderFactoryContract'
-import { type BaseRequestContract, type EventHandlerCallback } from './contracts/BaseRequestContract'
+import { type BaseRequestContract, type EventHandlerCallback, type SendRequestOptions } from './contracts/BaseRequestContract'
 import { type HeadersContract } from './contracts/HeadersContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type ResponseContract } from './contracts/ResponseContract'
@@ -35,6 +35,7 @@ export abstract class BaseRequest<
   protected requestLoader: RequestLoaderContract<RequestLoaderLoadingType> | undefined = undefined
   protected abortSignal: AbortSignal | undefined = undefined
   protected concurrencyOptions: RequestConcurrencyOptions | undefined = undefined
+  protected additionalHeaders: HeadersContract = {}
   /* @ts-expect-error Ignore generics */
   protected events: { [key in RequestEvents]?: EventHandlerCallback[] } = {}
 
@@ -106,6 +107,15 @@ export abstract class BaseRequest<
     return this
   }
 
+  public setHeaders(headers: HeadersContract): this {
+    this.additionalHeaders = {
+      ...this.additionalHeaders,
+      ...headers
+    }
+
+    return this
+  }
+
   public getBody(): RequestBodyInterface | undefined {
     return this.requestBody
   }
@@ -139,7 +149,12 @@ export abstract class BaseRequest<
     this.events[event].forEach((handler: EventHandlerCallback<T>) => handler(value))
   }
 
-  public async send(): Promise<ResponseClass> {
+  public async send(): Promise<ResponseClass>
+  public async send(options: { resolveBody?: true }): Promise<ResponseClass>
+  public async send(options: { resolveBody: false }): Promise<ResponseHandlerContract>
+  public async send(options: SendRequestOptions = {}): Promise<ResponseClass | ResponseHandlerContract> {
+    const responseSkeleton = this.getResponse()
+    const acceptHeader = responseSkeleton.getAcceptHeader()
     const concurrencyMode: RequestConcurrencyMode = this.concurrencyOptions?.mode ?? RequestConcurrencyMode.ALLOW
     const concurrencyKey = this.concurrencyOptions?.key ?? this.requestId
     const useReplace = concurrencyMode === RequestConcurrencyMode.REPLACE || concurrencyMode === RequestConcurrencyMode.REPLACE_LATEST
@@ -160,33 +175,34 @@ export abstract class BaseRequest<
     }
 
     this.dispatch<boolean>(RequestEvents.LOADING, true)
-
     this.requestLoader?.setLoading(true)
-
-    const responseSkeleton = this.getResponse()
 
     const requestBody = this.requestBody === undefined ? undefined : this.getRequestBodyFactory()?.make(this.requestBody)
     const requestConfig = this.buildRequestConfig(requestBody, concurrencyKey, sequence, useLatest)
 
-    return this.resolveRequestDriver()
+    const responseHandler = await this.resolveRequestDriver()
       .send(
         this.buildUrl(),
         this.method(),
         {
-          Accept: responseSkeleton.getAcceptHeader(),
-          ...this.requestHeaders()
+          Accept: acceptHeader,
+          ...this.requestHeaders(),
+          ...this.additionalHeaders
         },
         requestBody,
         requestConfig
       )
-      .then(async (responseHandler: ResponseHandlerContract) => {
+      .then(async (driverResponseHandler: ResponseHandlerContract) => {
         if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
           throw new StaleResponseException()
         }
 
-        await responseSkeleton.setResponse(responseHandler)
+        if ((driverResponseHandler.getStatusCode() ?? 0) >= 400) {
+          const handler = new ErrorHandler<ResponseErrorBody>(driverResponseHandler)
+          await handler.handle()
+        }
 
-        return responseSkeleton
+        return driverResponseHandler
       })
       .catch(async (error) => {
         if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
@@ -199,7 +215,6 @@ export abstract class BaseRequest<
 
         if (error instanceof ResponseException) {
           const handler = new ErrorHandler<ResponseErrorBody>(error.getResponse())
-
           await handler.handle()
         }
 
@@ -217,6 +232,14 @@ export abstract class BaseRequest<
 
         this.decrementConcurrencyInFlight(concurrencyKey)
       })
+
+    if (options.resolveBody === false) {
+      return responseHandler
+    }
+
+    await responseSkeleton.setResponse(responseHandler)
+
+    return responseSkeleton
   }
 
   public isLoading(): RequestLoaderLoadingType {

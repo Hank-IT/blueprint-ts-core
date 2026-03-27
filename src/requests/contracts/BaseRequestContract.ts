@@ -3,8 +3,12 @@ import { RequestEvents } from '../RequestEvents.enum'
 import { type BodyFactoryContract } from './BodyFactoryContract'
 import { type HeadersContract } from './HeadersContract'
 import { type RequestConcurrencyOptions } from '../types/RequestConcurrencyOptions'
+import { type ResponseHandlerContract } from '../drivers/contracts/ResponseHandlerContract'
 
 export type EventHandlerCallback<T> = (value: T) => void
+export interface SendRequestOptions {
+  resolveBody?: boolean
+}
 
 export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface extends object> {
   method(): RequestMethodEnum
@@ -26,6 +30,8 @@ export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterf
   on<T>(event: RequestEvents, handler: EventHandlerCallback<T>): this
 
   send(): Promise<ResponseClass>
+  send(options: { resolveBody?: true }): Promise<ResponseClass>
+  send(options: { resolveBody: false }): Promise<ResponseHandlerContract>
 
   isLoading(): RequestLoaderLoadingType
 

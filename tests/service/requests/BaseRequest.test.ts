@@ -118,6 +118,26 @@ describe('BaseRequest', () => {
     expect(body?.getContent()).toBe('{"name":"Ada"}')
   })
 
+  it('can send without resolving the typed response body', async () => {
+    const responseHandler = createResponseHandler()
+    const driver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(responseHandler),
+    }
+    BaseRequest.setRequestDriver(driver)
+
+    const request = new TestRequest()
+    request.setBody({ name: 'Ada' })
+
+    request.setHeaders({ Accept: 'application/json' })
+
+    const response = await request.send({ resolveBody: false })
+
+    expect(response).toBe(responseHandler)
+
+    const [, , headers] = (driver.send as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(headers).toEqual({ Accept: 'application/json', 'X-Req': 'value' })
+  })
+
   it('dispatches upload progress events from the driver config callback', async () => {
     const driver: RequestDriverContract = {
       send: vi.fn().mockImplementation(async (_url, _method, _headers, _body, requestConfig) => {

@@ -210,6 +210,13 @@ describe('BaseForm behavior', () => {
 
     expect(form.hasErrorsInGroup('positions')).toBe(true)
     expect(form.hasErrorsInGroup('details')).toBe(false)
+    expect(form.getErrors()).toEqual({
+      'positions.0.value': ['Invalid position']
+    })
+    expect(form.getErrorsInGroup('positions')).toEqual({
+      'positions.0.value': ['Invalid position']
+    })
+    expect(form.getErrorsInGroup('details')).toEqual({})
   })
 
   it('touches all fields in a validation group', () => {

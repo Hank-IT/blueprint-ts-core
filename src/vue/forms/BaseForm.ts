@@ -514,7 +514,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  private flattenErrorValue(value: FieldErrors | undefined, path: string, flattened: Record<string, FieldErrors>): void {
+  private flattenErrorValue(value: FieldErrors | undefined, path: string, flattened: Record<string, ErrorMessages>): void {
     if (value === undefined) {
       return
     }
@@ -560,8 +560,8 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
   }
 
-  private flattenErrors(): Record<string, FieldErrors> {
-    const flattened: Record<string, FieldErrors> = {}
+  private flattenErrors(): Record<string, ErrorMessages> {
+    const flattened: Record<string, ErrorMessages> = {}
 
     for (const key of Object.keys(this._errors)) {
       this.flattenErrorValue(this._errors[key], key, flattened)
@@ -666,7 +666,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       return
     }
 
-    const preservedErrors: Record<string, FieldErrors> = {}
+    const preservedErrors: Record<string, ErrorMessages> = {}
     for (const [errorKey, errorValue] of Object.entries(this.flattenErrors())) {
       if (!this.errorKeyBelongsToGroup(errorKey, group)) {
         preservedErrors[errorKey] = cloneDeep(errorValue)
@@ -1602,8 +1602,24 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return this._hasErrors.value
   }
 
+  public getErrors(): Record<string, ErrorMessages> {
+    return this.flattenErrors()
+  }
+
   public hasErrorsInGroup(group: string): boolean {
     return Object.keys(this.flattenErrors()).some((errorKey) => this.errorKeyBelongsToGroup(errorKey, group))
+  }
+
+  public getErrorsInGroup(group: string): Record<string, ErrorMessages> {
+    const groupErrors: Record<string, ErrorMessages> = {}
+
+    for (const [errorKey, errorMessages] of Object.entries(this.flattenErrors())) {
+      if (this.errorKeyBelongsToGroup(errorKey, group)) {
+        groupErrors[errorKey] = cloneDeep(errorMessages)
+      }
+    }
+
+    return groupErrors
   }
 
   /**

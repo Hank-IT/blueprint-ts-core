@@ -54,6 +54,30 @@ form.fillErrors({
 form.hasErrors()
 ```
 
+Get the current flattened error bag:
+
+```ts
+form.getErrors()
+```
+
+This returns dot-path keyed messages such as:
+
+```ts
+{
+  'email': ['The email field is required.'],
+  'positions.0.value': ['The value is invalid.']
+}
+```
+
+If you use validation groups, you can also read only the current errors for one group:
+
+```ts
+form.getErrorsInGroup('details')
+form.getErrorsInGroup('positions')
+```
+
+Like `hasErrorsInGroup(...)`, this uses prefix-subtree matching, so a group entry like `positions` includes nested keys such as `positions.0.value`.
+
 ## Advanced Usage
 
 ### Mapping Server Errors

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { BaseForm, PropertyAwareArray, PropertyAwareObject } from '../../../src/vue/forms'
-import { RequiredRule, ValidationMode, type ValidationRules } from '../../../src/vue/forms/validation'
+import { RequiredRule, ValidationMode, type ValidationGroups, type ValidationRules } from '../../../src/vue/forms/validation'
 
 interface TestFormState {
   name: string
@@ -55,6 +55,13 @@ class BehaviorForm extends BaseForm<TestFormState, TestFormState> {
         rules: [new RequiredRule('Required')],
         options: { mode: ValidationMode.PASSIVE }
       }
+    }
+  }
+
+  protected override defineValidationGroups(): ValidationGroups<TestFormState> {
+    return {
+      details: ['name', 'start_date', 'start_time'],
+      positions: ['positions']
     }
   }
 }
@@ -176,6 +183,44 @@ describe('BaseForm behavior', () => {
     const ok = form.validate(true)
     expect(ok).toBe(false)
     expect(form.properties.name.errors.length).toBeGreaterThan(0)
+  })
+
+  it('validates only the targeted group and preserves unrelated errors', () => {
+    const form = new BehaviorForm()
+
+    form.fillErrors({
+      'positions.0.value': ['Invalid position']
+    })
+
+    const ok = form.validateGroup('details', true)
+
+    expect(ok).toBe(false)
+    expect(form.properties.name.errors).toEqual(['Required'])
+    expect(form.properties.positions[0].value.errors).toEqual(['Invalid position'])
+    expect(form.hasErrorsInGroup('details')).toBe(true)
+    expect(form.hasErrorsInGroup('positions')).toBe(true)
+  })
+
+  it('detects nested errors within a validation group', () => {
+    const form = new BehaviorForm()
+
+    form.fillErrors({
+      'positions.0.value': ['Invalid position']
+    })
+
+    expect(form.hasErrorsInGroup('positions')).toBe(true)
+    expect(form.hasErrorsInGroup('details')).toBe(false)
+  })
+
+  it('touches all fields in a validation group', () => {
+    const form = new BehaviorForm()
+
+    form.touchGroup('details')
+
+    expect(form.isTouched('name')).toBe(true)
+    expect(form.isTouched('start_date')).toBe(true)
+    expect(form.isTouched('start_time')).toBe(true)
+    expect(form.isTouched('positions')).toBe(false)
   })
 
   it('exposes PropertyAwareObject nested fields and rebuilds nested payloads', () => {

@@ -6,7 +6,7 @@ import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDrive
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray, type PropertyAwareField } from './PropertyAwareArray'
 import { PropertyAwareObject } from './PropertyAwareObject'
-import { ValidationMode, type ValidationRules } from './validation'
+import { ValidationMode, type ValidationGroups, type ValidationRules } from './validation'
 
 interface DirtyObject {
   [key: string]: DirtyState
@@ -220,6 +220,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   protected errorMap: { [serverKey: string]: string | string[] } = {}
 
   protected rules: ValidationRules<FormBody> = {}
+  protected validationGroups: ValidationGroups<FormBody> = {}
 
   private fieldDependencies: Map<keyof FormBody, Set<keyof FormBody>> = new Map()
   private readonly arrayWrapperCache = new Map<keyof FormBody, Array<unknown>>()
@@ -419,6 +420,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     this.rules = this.defineRules()
+    this.validationGroups = this.defineValidationGroups()
 
     this.buildFieldDependencies()
 
@@ -502,10 +504,177 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return {}
   }
 
+  protected defineValidationGroups(): ValidationGroups<FormBody> {
+    return {}
+  }
+
   private clearErrors(): void {
     for (const key in this._errors) {
       delete this._errors[key]
     }
+  }
+
+  private flattenErrorValue(value: FieldErrors | undefined, path: string, flattened: Record<string, FieldErrors>): void {
+    if (value === undefined) {
+      return
+    }
+
+    if (isErrorMessages(value)) {
+      if (value.length > 0) {
+        flattened[path] = cloneDeep(value)
+      }
+      return
+    }
+
+    if (isErrorArray(value)) {
+      value.forEach((item, index) => {
+        const itemPath = `${path}.${index}`
+        if (isErrorMessages(item)) {
+          if (item.length > 0) {
+            flattened[itemPath] = cloneDeep(item)
+          }
+          return
+        }
+
+        this.flattenErrorValue(item, itemPath, flattened)
+      })
+      return
+    }
+
+    if (!isErrorObject(value)) {
+      return
+    }
+
+    const rootErrors = value['']
+    if (isErrorMessages(rootErrors) && rootErrors.length > 0) {
+      flattened[path] = cloneDeep(rootErrors)
+    }
+
+    for (const key of Object.keys(value)) {
+      if (key === '') {
+        continue
+      }
+
+      const nestedPath = path.length > 0 ? `${path}.${key}` : key
+      this.flattenErrorValue(value[key], nestedPath, flattened)
+    }
+  }
+
+  private flattenErrors(): Record<string, FieldErrors> {
+    const flattened: Record<string, FieldErrors> = {}
+
+    for (const key of Object.keys(this._errors)) {
+      this.flattenErrorValue(this._errors[key], key, flattened)
+    }
+
+    return flattened
+  }
+
+  private applyErrors<ErrorInterface extends Record<string, FieldErrors>>(errorsData: ErrorInterface, useErrorMap: boolean): void {
+    for (const serverKey in errorsData) {
+      if (!Object.prototype.hasOwnProperty.call(errorsData, serverKey)) {
+        continue
+      }
+
+      const errorMessage = errorsData[serverKey]
+      if (errorMessage === undefined) {
+        continue
+      }
+
+      let targetKeys: string[] = [serverKey]
+
+      if (useErrorMap) {
+        const mapping = this.errorMap?.[serverKey]
+        if (mapping) {
+          targetKeys = Array.isArray(mapping) ? mapping : [mapping]
+        }
+      }
+
+      for (const targetKey of targetKeys) {
+        const parts = targetKey.split('.')
+        if (parts.length > 1) {
+          const topKey = parts[0] ?? ''
+          const indexPart = parts[1] ?? ''
+          const index = Number.parseInt(indexPart, 10)
+          if (!topKey) {
+            this._errors[targetKey] = errorMessage
+            continue
+          }
+
+          if (!Number.isFinite(index)) {
+            const current = isErrorObject(this._errors[topKey]) ? this._errors[topKey] : {}
+            this._errors[topKey] = current
+            this.setNestedError(current, parts.slice(1), errorMessage)
+            continue
+          }
+
+          const errorSubKey = parts.slice(2).join('.')
+          const errors = this.getOrCreateErrorArray(topKey)
+          const errorObject = this.getOrCreateErrorObject(errors, index)
+
+          if (errorSubKey.length === 0) {
+            errorObject[''] = errorMessage
+          } else {
+            this.setNestedError(errorObject, errorSubKey.split('.'), errorMessage)
+          }
+        } else {
+          this._errors[targetKey] = errorMessage
+        }
+      }
+    }
+  }
+
+  private getValidationGroupPaths(group: string): string[] {
+    const paths = this.validationGroups[group]
+
+    if (!paths || paths.length === 0) {
+      return []
+    }
+
+    return [...paths]
+  }
+
+  private matchesValidationGroupPath(errorKey: string, groupPath: string): boolean {
+    return errorKey === groupPath || errorKey.startsWith(`${groupPath}.`)
+  }
+
+  private errorKeyBelongsToGroup(errorKey: string, group: string): boolean {
+    return this.getValidationGroupPaths(group).some((groupPath) => this.matchesValidationGroupPath(errorKey, groupPath))
+  }
+
+  private getValidationGroupFields(group: string): Array<keyof FormBody> {
+    const fields: Array<keyof FormBody> = []
+
+    for (const path of this.getValidationGroupPaths(group)) {
+      const [topLevelField] = path.split('.')
+      if (!topLevelField || !(topLevelField in this.state)) {
+        continue
+      }
+
+      const typedField = topLevelField as keyof FormBody
+      if (!fields.includes(typedField)) {
+        fields.push(typedField)
+      }
+    }
+
+    return fields
+  }
+
+  private clearGroupErrors(group: string): void {
+    const groupPaths = this.getValidationGroupPaths(group)
+    if (groupPaths.length === 0) {
+      return
+    }
+
+    const preservedErrors: Record<string, FieldErrors> = {}
+    for (const [errorKey, errorValue] of Object.entries(this.flattenErrors())) {
+      if (!this.errorKeyBelongsToGroup(errorKey, group)) {
+        preservedErrors[errorKey] = cloneDeep(errorValue)
+      }
+    }
+
+    this.clearErrors()
+    this.applyErrors(preservedErrors, false)
   }
 
   private getOrCreateErrorArray(key: string): ErrorArray {
@@ -945,54 +1114,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    */
   public fillErrors<ErrorInterface extends Record<string, FieldErrors>>(errorsData: ErrorInterface): void {
     this.clearErrors()
-
-    for (const serverKey in errorsData) {
-      if (Object.prototype.hasOwnProperty.call(errorsData, serverKey)) {
-        const errorMessage = errorsData[serverKey]
-        if (errorMessage === undefined) {
-          continue
-        }
-
-        let targetKeys: string[] = [serverKey]
-
-        const mapping = this.errorMap?.[serverKey]
-        if (mapping) {
-          targetKeys = Array.isArray(mapping) ? mapping : [mapping]
-        }
-
-        for (const targetKey of targetKeys) {
-          const parts = targetKey.split('.')
-          if (parts.length > 1) {
-            const topKey = parts[0] ?? ''
-            const indexPart = parts[1] ?? ''
-            const index = Number.parseInt(indexPart, 10)
-            if (!topKey) {
-              this._errors[targetKey] = errorMessage
-              continue
-            }
-
-            if (!Number.isFinite(index)) {
-              const current = isErrorObject(this._errors[topKey]) ? this._errors[topKey] : {}
-              this._errors[topKey] = current
-              this.setNestedError(current, parts.slice(1), errorMessage)
-              continue
-            }
-            const errorSubKey = parts.slice(2).join('.')
-
-            const errors = this.getOrCreateErrorArray(topKey)
-            const errorObject = this.getOrCreateErrorObject(errors, index)
-
-            if (errorSubKey.length === 0) {
-              errorObject[''] = errorMessage
-            } else {
-              this.setNestedError(errorObject, errorSubKey.split('.'), errorMessage)
-            }
-          } else {
-            this._errors[targetKey] = errorMessage
-          }
-        }
-      }
-    }
+    this.applyErrors(errorsData, true)
   }
 
   /**
@@ -1074,9 +1196,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   public validate(isSubmitting: boolean = false): boolean {
     let isValid = true
 
-    for (const key in this._errors) {
-      delete this._errors[key]
-    }
+    this.clearErrors()
 
     for (const field in this.rules) {
       if (Object.prototype.hasOwnProperty.call(this.rules, field)) {
@@ -1094,6 +1214,31 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     return isValid
+  }
+
+  public validateGroup(group: string, isSubmitting: boolean = false): boolean {
+    const fields = this.getValidationGroupFields(group)
+    if (fields.length === 0) {
+      return true
+    }
+
+    this.clearGroupErrors(group)
+
+    for (const field of fields) {
+      this.validateField(field, {
+        isSubmitting,
+        isDependentChange: false,
+        isTouched: this.isTouched(field)
+      })
+    }
+
+    return !this.hasErrorsInGroup(group)
+  }
+
+  public touchGroup(group: string): void {
+    for (const field of this.getValidationGroupFields(group)) {
+      this.touch(field)
+    }
   }
 
   public fillState(data: Partial<FormBody>): void {
@@ -1455,6 +1600,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    */
   public hasErrors(): boolean {
     return this._hasErrors.value
+  }
+
+  public hasErrorsInGroup(group: string): boolean {
+    return Object.keys(this.flattenErrors()).some((errorKey) => this.errorKeyBelongsToGroup(errorKey, group))
   }
 
   /**

@@ -8,8 +8,8 @@ import { MinRule } from './rules/MinRule'
 import { ValidationMode } from './ValidationMode.enum'
 
 import { type BidirectionalRule } from './types/BidirectionalRule'
-import { type ValidationRules } from './types/ValidationRules'
+import { type ValidationGroups, type ValidationRules } from './types/ValidationRules'
 
 export { BaseRule, ConfirmedRule, EmailRule, JsonRule, RequiredRule, UrlRule, MinRule, ValidationMode }
 
-export type { BidirectionalRule, ValidationRules }
+export type { BidirectionalRule, ValidationGroups, ValidationRules }

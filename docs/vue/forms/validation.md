@@ -66,6 +66,60 @@ Some modes (notably `PASSIVE` / `ON_SUBMIT`) only validate when you trigger vali
 - `validate(false)` still validates fields that are currently dirty, touched, or set to `INSTANTLY`.
 - `ValidationMode.NEVER` prevents validation in all cases, even during submit.
 
+## Validation Groups
+
+Use validation groups when one form drives multiple tabs or wizard steps and you need to:
+
+- validate only one section without clearing unrelated errors
+- check whether a specific section currently has errors
+- mark an entire section as touched
+
+Define groups by overriding `defineValidationGroups()`:
+
+```ts
+import { type ValidationGroups } from '@blueprint-ts/core/vue/forms/validation'
+
+protected override defineValidationGroups(): ValidationGroups<MyFormBody> {
+  return {
+    details: ['name', 'version', 'software_product_id', 'upload_session_id'],
+    install: ['install_steps'],
+    uninstall: ['uninstall_steps']
+  }
+}
+```
+
+Group members use prefix-subtree matching:
+
+- `install_steps` matches `install_steps`
+- `install_steps` also matches nested keys like `install_steps.0.payload.command`
+
+### Validate Only One Group
+
+```ts
+const detailsValid = form.validateGroup('details', true)
+if (!detailsValid) return
+```
+
+`validateGroup()` clears and recomputes errors only for that group. Errors outside the group are preserved.
+
+### Check Whether a Group Has Errors
+
+```ts
+if (form.hasErrorsInGroup('install')) {
+  // mark the install tab as invalid
+}
+```
+
+This works with nested server-side validation errors such as `install_steps.0.payload.command`.
+
+### Mark a Group as Touched
+
+```ts
+form.touchGroup('details')
+```
+
+This marks all top-level fields covered by the group as touched and triggers `ON_TOUCH` validation where applicable.
+
 ## Typing `defineRules`
 
 Use `ValidationRules<FormBody>` for a concise, strongly-typed return type:

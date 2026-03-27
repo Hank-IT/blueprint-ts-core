@@ -1,11 +1,10 @@
 import { reactive, computed, toRaw, type ComputedRef, type WritableComputedRef, watch } from 'vue'
 import { camelCase, upperFirst, cloneDeep, isEqual } from 'lodash-es'
-import isEqualWith from 'lodash-es/isEqualWith'
 import { type PersistedForm } from './types/PersistedForm'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray, type PropertyAwareField } from './PropertyAwareArray'
-import { PropertyAwareObject } from './PropertyAwareObject'
+import { PropertyAwareObject, PROPERTY_AWARE_OBJECT_MARKER } from './PropertyAwareObject'
 import { ValidationMode, type ValidationGroups, type ValidationRules } from './validation'
 
 interface DirtyObject {
@@ -79,6 +78,42 @@ function isPropertyAwareObject(value: unknown): value is PropertyAwareObject<obj
   return value instanceof PropertyAwareObject
 }
 
+function isSerializedPropertyAwareObject(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && value[PROPERTY_AWARE_OBJECT_MARKER] === true
+}
+
+function restoreSerializedPropertyAwareValue<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => restoreSerializedPropertyAwareValue(item)) as T
+  }
+
+  if (isSerializedPropertyAwareObject(value)) {
+    const restored: Record<string, unknown> = {}
+
+    for (const [key, child] of Object.entries(value)) {
+      if (key === PROPERTY_AWARE_OBJECT_MARKER) {
+        continue
+      }
+
+      restored[key] = restoreSerializedPropertyAwareValue(child)
+    }
+
+    return new PropertyAwareObject(restored) as T
+  }
+
+  if (isRecord(value)) {
+    const restored: Record<string, unknown> = {}
+
+    for (const [key, child] of Object.entries(value)) {
+      restored[key] = restoreSerializedPropertyAwareValue(child)
+    }
+
+    return restored as T
+  }
+
+  return value
+}
+
 export function propertyAwareToRaw<T>(propertyAwareObject: T): PropertyAwareToRaw<T> {
   if (Array.isArray(propertyAwareObject)) {
     return propertyAwareObject.map((item) => propertyAwareToRaw(item)) as PropertyAwareToRaw<T>
@@ -141,10 +176,15 @@ function deepMergeArrays<T>(target: T[], source: T[]): T[] {
 function restorePropertyAwareStructure<T>(defaults: T, value: unknown): T {
   if (defaults instanceof PropertyAwareArray) {
     const restored = value instanceof PropertyAwareArray ? value : new PropertyAwareArray(Array.isArray(value) ? Array.from(value) : [])
+    const defaultItemTemplate = defaults[0]
 
     for (let index = 0; index < restored.length; index++) {
       if (index < defaults.length) {
         restored[index] = restorePropertyAwareStructure(defaults[index], restored[index])
+      } else if (defaultItemTemplate !== undefined) {
+        restored[index] = restorePropertyAwareStructure(defaultItemTemplate, restored[index])
+      } else {
+        restored[index] = restoreSerializedPropertyAwareValue(restored[index])
       }
     }
 
@@ -174,29 +214,51 @@ function restorePropertyAwareStructure<T>(defaults: T, value: unknown): T {
     return value as T
   }
 
-  return value as T
+  return restoreSerializedPropertyAwareValue(value as T)
+}
+
+function normalizePropertyAwareEqualityValue<T>(value: T): T {
+  if (value instanceof PropertyAwareArray) {
+    return Array.from(value, (item) => normalizePropertyAwareEqualityValue(item)) as T
+  }
+
+  if (isPropertyAwareObject(value) || isSerializedPropertyAwareObject(value)) {
+    const normalized: Record<string, unknown> = {}
+
+    for (const [key, child] of Object.entries(value)) {
+      if (key === PROPERTY_AWARE_OBJECT_MARKER) {
+        continue
+      }
+
+      normalized[key] = normalizePropertyAwareEqualityValue(child)
+    }
+
+    return normalized as T
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizePropertyAwareEqualityValue(item)) as T
+  }
+
+  if (isRecord(value)) {
+    const normalized: Record<string, unknown> = {}
+
+    for (const [key, child] of Object.entries(value)) {
+      normalized[key] = normalizePropertyAwareEqualityValue(child)
+    }
+
+    return normalized as T
+  }
+
+  return value
 }
 
 /**
- * Compare values while treating PropertyAwareArray as its underlying array.
+ * Compare values while ignoring persistence-only markers on property-aware structures.
  * This avoids false negatives when comparing persisted state to defaults.
  */
 function propertyAwareDeepEqual<T>(a: T, b: T): boolean {
-  const getInner = (val: unknown) => {
-    if (val instanceof PropertyAwareArray) {
-      return val
-    }
-    return val
-  }
-
-  return isEqualWith(a, b, (aValue, bValue) => {
-    const normA = getInner(aValue)
-    const normB = getInner(bValue)
-    if (normA !== aValue || normB !== bValue) {
-      return isEqual(normA, normB)
-    }
-    return undefined // use default comparison
-  })
+  return isEqual(normalizePropertyAwareEqualityValue(a), normalizePropertyAwareEqualityValue(b))
 }
 
 /**

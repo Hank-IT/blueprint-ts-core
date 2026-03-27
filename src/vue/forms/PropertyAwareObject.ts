@@ -3,6 +3,8 @@
  * Fields declared as PropertyAwareObject are exposed as nested property-aware
  * children instead of a single scalar field.
  */
+export const PROPERTY_AWARE_OBJECT_MARKER = '__propertyAwareObject'
+
 export class PropertyAwareObject<T extends object = Record<string, unknown>> {
   [key: string]: unknown
   private readonly __propertyAwareObjectBrand!: void
@@ -15,5 +17,12 @@ export class PropertyAwareObject<T extends object = Record<string, unknown>> {
 
   public static from<T extends object>(values: T): PropertyAwareObject<T> {
     return new PropertyAwareObject(values)
+  }
+
+  public toJSON(): Record<string, unknown> {
+    return {
+      [PROPERTY_AWARE_OBJECT_MARKER]: true,
+      ...this
+    }
   }
 }

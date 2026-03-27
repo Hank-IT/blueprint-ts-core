@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { BaseForm, PropertyAwareArray, PropertyAwareObject } from '../../../src/vue/forms'
+import { BaseForm, PropertyAwareArray, PropertyAwareObject, SessionStorageDriver } from '../../../src/vue/forms'
 import { RequiredRule, ValidationMode, type ValidationGroups, type ValidationRules } from '../../../src/vue/forms/validation'
 
 interface TestFormState {
@@ -135,6 +135,39 @@ class NestedBehaviorTwoStepForm extends BaseForm<NestedFormRequestBody, NestedFo
       },
       { persist: false }
     )
+  }
+}
+
+class PersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, NestedFormState> {
+  public constructor() {
+    super(
+      {
+        payload: new PropertyAwareObject({
+          command: '',
+          interpreter: 'powershell'
+        }),
+        steps: new PropertyAwareArray([])
+      },
+      { persist: true, persistSuffix: 'nested-persistence-test' }
+    )
+  }
+
+  protected override getPersistenceDriver(suffix: string | undefined): SessionStorageDriver {
+    return new SessionStorageDriver(suffix)
+  }
+
+  public addStep(): void {
+    this.fillState({
+      steps: new PropertyAwareArray([
+        {
+          name: 'persisted-step',
+          payload: new PropertyAwareObject({
+            command: 'echo persisted',
+            interpreter: 'bash'
+          })
+        }
+      ])
+    })
   }
 }
 
@@ -335,5 +368,20 @@ describe('BaseForm behavior', () => {
 
     expect(form.properties.payload.command.errors).toEqual([])
     expect(form.properties.payload.interpreter.errors).toEqual(['Interpreter required'])
+  })
+
+  it('restores persisted PropertyAwareObject fields inside PropertyAwareArray items', () => {
+    sessionStorage.clear()
+
+    const initialForm = new PersistentNestedBehaviorForm()
+    initialForm.addStep()
+
+    const restoredForm = new PersistentNestedBehaviorForm()
+
+    expect(restoredForm.properties.steps).toHaveLength(1)
+    expect(restoredForm.properties.steps[0].payload.command.model.value).toBe('echo persisted')
+    expect(restoredForm.properties.steps[0].payload.interpreter.model.value).toBe('bash')
+
+    sessionStorage.clear()
   })
 })

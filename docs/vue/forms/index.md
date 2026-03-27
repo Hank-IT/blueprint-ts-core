@@ -7,6 +7,8 @@
 - Payload transformations
 - Optional persistence
 - Array helpers and file handling
+- Stable property-aware array item wrappers for reorderable UIs
+- Opt-in nested object fields via `PropertyAwareObject`
 
 **Getting Started**
 

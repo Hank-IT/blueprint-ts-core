@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { BaseForm, PropertyAwareArray } from '../../../src/vue/forms'
+import { BaseForm, PropertyAwareArray, PropertyAwareObject } from '../../../src/vue/forms'
 import { RequiredRule, ValidationMode, type ValidationRules } from '../../../src/vue/forms/validation'
 
 interface TestFormState {
@@ -7,6 +7,29 @@ interface TestFormState {
   start_date: string
   start_time: string
   positions: PropertyAwareArray<{ value: string }>
+}
+
+interface NestedPayload {
+  command: string
+  interpreter: string
+}
+
+interface NestedStep {
+  name: string
+  payload: PropertyAwareObject<NestedPayload>
+}
+
+interface NestedFormState {
+  payload: PropertyAwareObject<NestedPayload>
+  steps: PropertyAwareArray<NestedStep>
+}
+
+interface NestedFormRequestBody {
+  payload: NestedPayload
+  steps: Array<{
+    name: string
+    payload: NestedPayload
+  }>
 }
 
 class BehaviorForm extends BaseForm<TestFormState, TestFormState> {
@@ -36,6 +59,48 @@ class BehaviorForm extends BaseForm<TestFormState, TestFormState> {
   }
 }
 
+class ReorderForm extends BaseForm<TestFormState, TestFormState> {
+  public constructor() {
+    super(
+      {
+        name: '',
+        start_date: '',
+        start_time: '',
+        positions: new PropertyAwareArray([{ value: 'a' }, { value: 'b' }])
+      },
+      { persist: false }
+    )
+  }
+
+  public reversePositions(): void {
+    const positions = this.state.positions
+    this.state.positions = new PropertyAwareArray([positions[1], positions[0]])
+  }
+}
+
+class NestedBehaviorForm extends BaseForm<NestedFormRequestBody, NestedFormState> {
+  public constructor() {
+    super(
+      {
+        payload: new PropertyAwareObject({
+          command: '',
+          interpreter: 'powershell'
+        }),
+        steps: new PropertyAwareArray([
+          {
+            name: 'first',
+            payload: new PropertyAwareObject({
+              command: '',
+              interpreter: 'bash'
+            })
+          }
+        ])
+      },
+      { persist: false }
+    )
+  }
+}
+
 describe('BaseForm behavior', () => {
   it('tracks dirty and touched on simple fields', () => {
     const form = new BehaviorForm()
@@ -59,6 +124,23 @@ describe('BaseForm behavior', () => {
 
     expect(form.properties.positions[0].value.dirty).toBe(true)
     expect(form.isDirty('positions')).toBe(true)
+  })
+
+  it('preserves PropertyAwareArray item wrapper identity across accesses and reorder', () => {
+    const form = new ReorderForm()
+
+    const firstAccess = form.properties.positions[0]
+    const secondAccess = form.properties.positions[0]
+
+    expect(firstAccess).toBe(secondAccess)
+
+    const originalFirst = form.properties.positions[0]
+    const originalSecond = form.properties.positions[1]
+
+    form.reversePositions()
+
+    expect(form.properties.positions[0]).toBe(originalSecond)
+    expect(form.properties.positions[1]).toBe(originalFirst)
   })
 
   it('maps external errors to fields and array items', () => {
@@ -94,5 +176,54 @@ describe('BaseForm behavior', () => {
     const ok = form.validate(true)
     expect(ok).toBe(false)
     expect(form.properties.name.errors.length).toBeGreaterThan(0)
+  })
+
+  it('exposes PropertyAwareObject nested fields and rebuilds nested payloads', () => {
+    const form = new NestedBehaviorForm()
+
+    expect(form.properties.payload.command.model.value).toBe('')
+    expect(form.properties.steps[0].payload.command.model.value).toBe('')
+
+    form.properties.payload.command.model.value = 'top'
+    form.properties.steps[0].payload.command.model.value = 'nested'
+
+    expect(form.buildPayload()).toEqual({
+      payload: {
+        command: 'top',
+        interpreter: 'powershell'
+      },
+      steps: [
+        {
+          name: 'first',
+          payload: {
+            command: 'nested',
+            interpreter: 'bash'
+          }
+        }
+      ]
+    })
+  })
+
+  it('maps nested PropertyAwareObject errors for direct fields and array items', () => {
+    const form = new NestedBehaviorForm()
+
+    form.fillErrors({
+      'payload.command': ['Top level required'],
+      'steps.0.payload.command': ['Step command required']
+    })
+
+    expect(form.properties.payload.command.errors).toEqual(['Top level required'])
+    expect(form.properties.steps[0].payload.command.errors).toEqual(['Step command required'])
+  })
+
+  it('tracks dirty state for nested PropertyAwareObject fields', () => {
+    const form = new NestedBehaviorForm()
+
+    expect(form.properties.steps[0].payload.command.dirty).toBe(false)
+
+    form.properties.steps[0].payload.command.model.value = 'changed'
+
+    expect(form.properties.steps[0].payload.command.dirty).toBe(true)
+    expect(form.isDirty('steps')).toBe(true)
   })
 })

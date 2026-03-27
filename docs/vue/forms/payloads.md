@@ -65,6 +65,8 @@ protected getPositionsProduct(value: ProductResource | null): number | null {
 }
 ```
 
+The same rule applies to nested `PropertyAwareObject` fields. `buildPayload()` reconstructs the raw nested object and still uses composite getters for nested properties where defined.
+
 ### Appended Fields
 
 Sometimes your server expects fields that don’t exist as a single input in the form. For example, the API may expect a `started_at` datetime, while the form has `start_date` and `start_time` fields. In this case, use an appended field.

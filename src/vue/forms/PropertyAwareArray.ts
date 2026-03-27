@@ -7,6 +7,7 @@ export interface PropertyAwareField<T> {
   model: WritableComputedRef<T>
   errors: string[]
   dirty: boolean
+  touched: boolean
 }
 
 /**

@@ -4,10 +4,13 @@ import isEqualWith from 'lodash-es/isEqualWith'
 import { type PersistedForm } from './types/PersistedForm'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
-import { PropertyAwareArray } from './PropertyAwareArray'
+import { PropertyAwareArray, type PropertyAwareField } from './PropertyAwareArray'
+import { PropertyAwareObject } from './PropertyAwareObject'
 import { ValidationMode, type ValidationRules } from './validation'
 
-type DirtyObject = Record<string, boolean>
+interface DirtyObject {
+  [key: string]: DirtyState
+}
 type DirtyArray = Array<boolean | DirtyObject>
 type DirtyState = boolean | DirtyObject | DirtyArray
 type DirtyMap<FormBody extends object> = Record<keyof FormBody, DirtyState>
@@ -20,21 +23,28 @@ type ErrorArray = Array<ErrorObject>
 type FieldErrors = ErrorMessages | ErrorObject | ErrorArray
 type ErrorBag = Record<string, FieldErrors>
 
-type FieldProperty<T> = {
-  model: WritableComputedRef<T>
-  errors: ErrorMessages
-  dirty: boolean
-  touched: boolean
-}
+type FieldProperty<T> = PropertyAwareField<T>
+
+type NestedPropertyAwareValue<T> =
+  T extends PropertyAwareArray<infer Item>
+    ? ArrayProperty<Item>
+    : T extends PropertyAwareObject<infer Shape>
+      ? ObjectProperty<Shape>
+      : FieldProperty<T>
+
+type ArrayProperty<T> = Array<T extends object ? { [P in keyof T]: NestedPropertyAwareValue<T[P]> } : { value: FieldProperty<T> }>
+type ObjectProperty<T extends object> = { [K in keyof T]: NestedPropertyAwareValue<T[K]> }
 
 type PropertyAwareToRaw<T> =
   T extends Array<infer U>
     ? Array<PropertyAwareToRaw<U>>
-    : T extends { model: { value: infer V } }
-      ? V
-      : T extends object
-        ? { [K in keyof T]: PropertyAwareToRaw<T[K]> }
-        : T
+    : T extends PropertyAwareObject<infer Shape>
+      ? { [K in keyof Shape]: PropertyAwareToRaw<Shape[K]> }
+      : T extends { model: { value: infer V } }
+        ? V
+        : T extends object
+          ? { [K in keyof T]: PropertyAwareToRaw<T[K]> }
+          : T
 
 type FormKey<FormBody extends object> = Extract<keyof FormBody, string>
 type RequestKey<RequestBody extends object> = Extract<keyof RequestBody, string>
@@ -43,8 +53,10 @@ type PropertyAwareInput<T> = T extends PropertyAwareArray<infer Item> ? Array<It
 
 type FormProperties<FormBody extends object> = {
   [K in keyof FormBody]: FormBody[K] extends PropertyAwareArray<infer Item>
-    ? Array<Item extends object ? { [P in keyof Item]: FieldProperty<Item[P]> } : { value: FieldProperty<Item> }>
-    : FieldProperty<FormBody[K]>
+    ? ArrayProperty<Item>
+    : FormBody[K] extends PropertyAwareObject<infer Shape>
+      ? ObjectProperty<Shape>
+      : FieldProperty<FormBody[K]>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -61,6 +73,10 @@ function isErrorArray(value: unknown): value is ErrorArray {
 
 function isErrorObject(value: unknown): value is ErrorObject {
   return isRecord(value)
+}
+
+function isPropertyAwareObject(value: unknown): value is PropertyAwareObject<object> {
+  return value instanceof PropertyAwareObject
 }
 
 export function propertyAwareToRaw<T>(propertyAwareObject: T): PropertyAwareToRaw<T> {
@@ -122,20 +138,43 @@ function deepMergeArrays<T>(target: T[], source: T[]): T[] {
   })
 }
 
-/**
- * Helper: Given the defaults and a state object (or original),
- * for every key where the default is a PropertyAwareArray, rewrap the value if needed.
- */
-function restorePropertyAwareArrays<FormBody>(defaults: FormBody, state: FormBody): void {
-  for (const key in defaults) {
-    const defVal = defaults[key]
-    if (defVal instanceof PropertyAwareArray) {
-      if (!(state[key] instanceof PropertyAwareArray)) {
-        const values = Array.isArray(state[key]) ? Array.from(state[key]) : []
-        state[key] = new PropertyAwareArray(values) as FormBody[typeof key]
+function restorePropertyAwareStructure<T>(defaults: T, value: unknown): T {
+  if (defaults instanceof PropertyAwareArray) {
+    const restored = value instanceof PropertyAwareArray ? value : new PropertyAwareArray(Array.isArray(value) ? Array.from(value) : [])
+
+    for (let index = 0; index < restored.length; index++) {
+      if (index < defaults.length) {
+        restored[index] = restorePropertyAwareStructure(defaults[index], restored[index])
       }
     }
+
+    return restored as T
   }
+
+  if (defaults instanceof PropertyAwareObject) {
+    const restored =
+      value instanceof PropertyAwareObject
+        ? value
+        : new PropertyAwareObject(isRecord(value) ? (value as Record<string, unknown>) : ({} as Record<string, unknown>))
+    const restoredRecord = restored as Record<string, unknown>
+    const defaultRecord = defaults as Record<string, unknown>
+
+    for (const key of Object.keys(defaults)) {
+      restoredRecord[key] = restorePropertyAwareStructure(defaultRecord[key], restoredRecord[key])
+    }
+
+    return restored as T
+  }
+
+  if (isRecord(defaults) && isRecord(value)) {
+    for (const key of Object.keys(defaults)) {
+      value[key] = restorePropertyAwareStructure(defaults[key], value[key])
+    }
+
+    return value as T
+  }
+
+  return value as T
 }
 
 /**
@@ -183,6 +222,8 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   protected rules: ValidationRules<FormBody> = {}
 
   private fieldDependencies: Map<keyof FormBody, Set<keyof FormBody>> = new Map()
+  private readonly arrayWrapperCache = new Map<keyof FormBody, Array<unknown>>()
+  private readonly arrayItemWrapperCache = new Map<keyof FormBody, WeakMap<object, Record<string, unknown>>>()
 
   /**
    * Returns the persistence driver to use.
@@ -202,10 +243,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     if (Array.isArray(current) && Array.isArray(original)) {
       return current.length !== original.length || !isEqual(current, original)
     } else if (current && typeof current === 'object' && original && typeof original === 'object') {
-      const dirty: Record<string, boolean> = {}
+      const dirty: DirtyObject = {}
       for (const key in current) {
         if (Object.prototype.hasOwnProperty.call(current, key)) {
-          dirty[key] = !isEqual(current[key], original[key])
+          dirty[key] = this.computeDirtyState(current[key], original[key])
         }
       }
       return dirty
@@ -225,7 +266,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       if (value instanceof PropertyAwareArray) {
         initDirty[key as keyof FormBody] = Array.from(value).map((item) => {
           if (item && typeof item === 'object') {
-            const obj: Record<string, boolean> = {}
+            const obj: DirtyObject = {}
             for (const k in item) {
               if (Object.prototype.hasOwnProperty.call(item, k)) {
                 obj[k] = false
@@ -356,16 +397,14 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     if (persist) {
       const persisted = driver.get<PersistedForm<FormBody>>(this.constructor.name)
       if (persisted && propertyAwareDeepEqual(defaults, persisted.original)) {
-        initialData = persisted.state
-        this.original = cloneDeep(persisted.original)
+        initialData = restorePropertyAwareStructure(defaults, persisted.state)
+        this.original = restorePropertyAwareStructure(defaults, cloneDeep(persisted.original))
         this.dirty = reactive(persisted.dirty) as DirtyMap<FormBody>
         this.touched = reactive(persisted.touched || {}) as Record<keyof FormBody, boolean>
-        restorePropertyAwareArrays(defaults, initialData)
-        restorePropertyAwareArrays(defaults, this.original)
       } else {
         console.log('Discarding persisted data for ' + this.constructor.name + " because it doesn't match the defaults.")
         initialData = defaults
-        this.original = cloneDeep(defaults)
+        this.original = restorePropertyAwareStructure(defaults, cloneDeep(defaults))
         const init = this.initDirtyTouched(defaults)
         this.dirty = init.dirty
         this.touched = init.touched
@@ -373,7 +412,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     } else {
       initialData = defaults
-      this.original = cloneDeep(defaults)
+      this.original = restorePropertyAwareStructure(defaults, cloneDeep(defaults))
       const init = this.initDirtyTouched(defaults)
       this.dirty = init.dirty
       this.touched = init.touched
@@ -521,18 +560,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     if (!itemErrors) {
       return []
     }
-
-    const fieldErrors = itemErrors[innerKey]
-    if (isErrorMessages(fieldErrors)) {
-      return fieldErrors
-    }
-
-    if (isErrorObject(fieldErrors)) {
-      const nestedErrors = fieldErrors['']
-      return isErrorMessages(nestedErrors) ? nestedErrors : []
-    }
-
-    return []
+    return this.getNestedErrorMessagesFromValue(itemErrors, innerKey.split('.'))
   }
 
   private getArrayItemErrorMessages(field: string, index: number): ErrorMessages {
@@ -549,6 +577,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       return isErrorMessages(nestedErrors) ? nestedErrors : []
     }
     return []
+  }
+
+  private getObjectFieldErrors(field: string, path: string[]): ErrorMessages {
+    return this.getNestedErrorMessagesFromValue(this._errors[field], path)
   }
 
   private setArrayDirty(field: keyof FormBody, index: number, value: DirtyState): void {
@@ -584,15 +616,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     const entry = dirtyState[index]
-    if (typeof entry === 'boolean') {
-      return entry
-    }
-
-    if (isRecord(entry)) {
-      return entry[innerKey] === true
-    }
-
-    return false
+    return this.getNestedDirtyValue(entry as DirtyState | undefined, innerKey.split('.'))
   }
 
   private getArrayItemDirtyValue(field: keyof FormBody, index: number): boolean {
@@ -603,6 +627,317 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
     const entry = dirtyState[index]
     return typeof entry === 'boolean' ? entry : false
+  }
+
+  private getNestedErrorMessagesFromValue(value: unknown, path: string[]): ErrorMessages {
+    if (path.length === 0) {
+      if (isErrorMessages(value)) {
+        return value
+      }
+
+      if (isErrorObject(value)) {
+        const nestedErrors = value['']
+        return isErrorMessages(nestedErrors) ? nestedErrors : []
+      }
+
+      return []
+    }
+
+    if (!isErrorObject(value)) {
+      return []
+    }
+
+    const [segment, ...rest] = path
+    if (segment === undefined) {
+      return []
+    }
+
+    return this.getNestedErrorMessagesFromValue(value[segment], rest)
+  }
+
+  private setNestedError(target: ErrorObject, path: string[], errorMessage: FieldErrors): void {
+    if (path.length === 0) {
+      target[''] = errorMessage
+      return
+    }
+
+    const [segment, ...rest] = path
+    if (segment === undefined) {
+      return
+    }
+
+    if (rest.length === 0) {
+      target[segment] = errorMessage
+      return
+    }
+
+    const next = isErrorObject(target[segment]) ? target[segment] : {}
+    target[segment] = next
+    this.setNestedError(next, rest, errorMessage)
+  }
+
+  private getNestedDirtyValue(value: DirtyState | undefined, path: string[]): boolean {
+    if (path.length === 0) {
+      if (typeof value === 'boolean') {
+        return value
+      }
+
+      if (Array.isArray(value)) {
+        return value.some((entry) => this.getNestedDirtyValue(entry, []))
+      }
+
+      if (isRecord(value)) {
+        return Object.values(value).some((item) => this.getNestedDirtyValue(item as DirtyState, []))
+      }
+
+      return false
+    }
+
+    if (!isRecord(value)) {
+      return false
+    }
+
+    const [segment, ...rest] = path
+    if (segment === undefined) {
+      return false
+    }
+
+    return this.getNestedDirtyValue(value[segment] as DirtyState | undefined, rest)
+  }
+
+  private createFieldProperty<T>(
+    getValue: () => T,
+    setValue: (value: T) => void,
+    getErrors: () => ErrorMessages,
+    getDirty: () => boolean,
+    getTouched: () => boolean
+  ): FieldProperty<T> {
+    const field = {
+      model: computed({
+        get: getValue,
+        set: setValue
+      })
+    } as FieldProperty<T>
+
+    Object.defineProperties(field, {
+      errors: {
+        enumerable: true,
+        get: getErrors
+      },
+      dirty: {
+        enumerable: true,
+        get: getDirty
+      },
+      touched: {
+        enumerable: true,
+        get: getTouched
+      }
+    })
+
+    return field
+  }
+
+  private resolveArrayItemIndex<K extends keyof FormBody>(field: K, item: ArrayItem<FormBody[K]>): number {
+    const value = this.state[field]
+
+    if (!(value instanceof PropertyAwareArray)) {
+      return -1
+    }
+
+    return value.indexOf(item)
+  }
+
+  private getArrayItemValueByPath<K extends keyof FormBody>(field: K, item: ArrayItem<FormBody[K]>, path: string[]): unknown {
+    const index = this.resolveArrayItemIndex(field, item)
+    if (index < 0) {
+      return undefined
+    }
+
+    let current: unknown = (this.state[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+    for (const segment of path) {
+      if (!isRecord(current)) {
+        return undefined
+      }
+
+      current = current[segment]
+    }
+
+    return current
+  }
+
+  private setArrayItemValueByPath<K extends keyof FormBody>(field: K, item: ArrayItem<FormBody[K]>, path: string[], value: unknown): void {
+    const index = this.resolveArrayItemIndex(field, item)
+    if (index < 0) {
+      return
+    }
+
+    if (path.length === 0) {
+      ;(this.state[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index] = value as ArrayItem<FormBody[K]>
+      const updatedElement = (this.state[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+      const originalElement = (this.original[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+      this.setArrayDirty(field, index, this.computeDirtyState(updatedElement, originalElement))
+      this.touched[field] = true
+      this.validateField(field)
+      this.validateDependentFields(field)
+      return
+    }
+
+    const currentItem = (this.state[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+    if (!isRecord(currentItem)) {
+      return
+    }
+
+    let current: Record<string, unknown> = currentItem as Record<string, unknown>
+    const segments = [...path]
+    const last = segments.pop()
+    if (last === undefined) {
+      return
+    }
+
+    for (const segment of segments) {
+      const next = current[segment]
+      if (!isRecord(next)) {
+        return
+      }
+
+      current = next
+    }
+
+    current[last] = value
+
+    const updatedElement = (this.state[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+    const originalElement = (this.original[field] as PropertyAwareArray<ArrayItem<FormBody[K]>>)[index]
+    this.setArrayDirty(field, index, this.computeDirtyState(updatedElement, originalElement))
+    this.touched[field] = true
+    this.validateField(field)
+    this.validateDependentFields(field)
+  }
+
+  private createObjectWrapperFromShape<K extends keyof FormBody>(
+    field: K,
+    shape: object,
+    getValueByPath: (path: string[]) => unknown,
+    setValueByPath: (path: string[], value: unknown) => void,
+    getErrorsByPath: (path: string[]) => ErrorMessages,
+    getDirtyByPath: (path: string[]) => boolean,
+    getTouched: () => boolean
+  ): Record<string, unknown> {
+    const wrapper: Record<string, unknown> = {}
+    const shapeRecord = shape as Record<string, unknown>
+
+    for (const innerKey of Object.keys(shape)) {
+      const child = shapeRecord[innerKey]
+      if (isPropertyAwareObject(child)) {
+        wrapper[innerKey] = this.createObjectWrapperFromShape(
+          field,
+          child,
+          (path) => getValueByPath([innerKey, ...path]),
+          (path, value) => setValueByPath([innerKey, ...path], value),
+          (path) => getErrorsByPath([innerKey, ...path]),
+          (path) => getDirtyByPath([innerKey, ...path]),
+          getTouched
+        )
+        continue
+      }
+
+      wrapper[innerKey] = this.createFieldProperty(
+        () => getValueByPath([innerKey]) as typeof child,
+        (newValue) => setValueByPath([innerKey], newValue),
+        () => getErrorsByPath([innerKey]),
+        () => getDirtyByPath([innerKey]),
+        getTouched
+      )
+    }
+
+    return wrapper
+  }
+
+  private getOrCreateArrayItemWrapper<K extends keyof FormBody>(field: K, item: ArrayItem<FormBody[K]>): Record<string, unknown> {
+    let fieldCache = this.arrayItemWrapperCache.get(field)
+    if (!fieldCache) {
+      fieldCache = new WeakMap<object, Record<string, unknown>>()
+      this.arrayItemWrapperCache.set(field, fieldCache)
+    }
+
+    const existing = fieldCache.get(item as object)
+    if (existing) {
+      return existing
+    }
+
+    const wrapper: Record<string, unknown> = {}
+
+    if (isRecord(item)) {
+      for (const innerKey of Object.keys(item)) {
+        const child = item[innerKey]
+
+        if (isPropertyAwareObject(child)) {
+          wrapper[innerKey] = this.createObjectWrapperFromShape(
+            field,
+            child,
+            (path) => this.getArrayItemValueByPath(field, item, [innerKey, ...path]),
+            (path, value) => this.setArrayItemValueByPath(field, item, [innerKey, ...path], value),
+            (path) => {
+              const index = this.resolveArrayItemIndex(field, item)
+              return index < 0 ? [] : this.getArrayItemFieldErrors(String(field), index, [innerKey, ...path].join('.'))
+            },
+            (path) => {
+              const index = this.resolveArrayItemIndex(field, item)
+              return index < 0
+                ? false
+                : this.getNestedDirtyValue((this.dirty[field] as DirtyArray | undefined)?.[index] as DirtyState | undefined, [innerKey, ...path])
+            },
+            () => this.touched[field] || false
+          )
+          continue
+        }
+
+        wrapper[innerKey] = this.createFieldProperty(
+          () => this.getArrayItemValueByPath(field, item, [innerKey]) as typeof child,
+          (newValue) => this.setArrayItemValueByPath(field, item, [innerKey], newValue),
+          () => {
+            const index = this.resolveArrayItemIndex(field, item)
+            return index < 0 ? [] : this.getArrayItemFieldErrors(String(field), index, innerKey)
+          },
+          () => {
+            const index = this.resolveArrayItemIndex(field, item)
+            return index < 0 ? false : this.getArrayItemDirty(field, index, innerKey)
+          },
+          () => this.touched[field] || false
+        )
+      }
+    } else {
+      wrapper['value'] = this.createFieldProperty(
+        () => this.getArrayItemValueByPath(field, item, []) as ArrayItem<FormBody[K]>,
+        (newValue) => this.setArrayItemValueByPath(field, item, [], newValue),
+        () => {
+          const index = this.resolveArrayItemIndex(field, item)
+          return index < 0 ? [] : this.getArrayItemErrorMessages(String(field), index)
+        },
+        () => {
+          const index = this.resolveArrayItemIndex(field, item)
+          return index < 0 ? false : this.getArrayItemDirtyValue(field, index)
+        },
+        () => this.touched[field] || false
+      )
+    }
+
+    fieldCache.set(item as object, wrapper)
+    return wrapper
+  }
+
+  private getOrCreateArrayWrappers<K extends keyof FormBody>(field: K, value: PropertyAwareArray<ArrayItem<FormBody[K]>>): Array<unknown> {
+    let wrappers = this.arrayWrapperCache.get(field)
+    if (!wrappers) {
+      wrappers = []
+      this.arrayWrapperCache.set(field, wrappers)
+    }
+
+    wrappers.length = 0
+    value.forEach((item) => {
+      wrappers!.push(this.getOrCreateArrayItemWrapper(field, item))
+    })
+
+    return wrappers
   }
 
   /**
@@ -631,8 +966,15 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             const topKey = parts[0] ?? ''
             const indexPart = parts[1] ?? ''
             const index = Number.parseInt(indexPart, 10)
-            if (!topKey || !Number.isFinite(index)) {
+            if (!topKey) {
               this._errors[targetKey] = errorMessage
+              continue
+            }
+
+            if (!Number.isFinite(index)) {
+              const current = isErrorObject(this._errors[topKey]) ? this._errors[topKey] : {}
+              this._errors[topKey] = current
+              this.setNestedError(current, parts.slice(1), errorMessage)
               continue
             }
             const errorSubKey = parts.slice(2).join('.')
@@ -643,7 +985,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
             if (errorSubKey.length === 0) {
               errorObject[''] = errorMessage
             } else {
-              errorObject[errorSubKey] = errorMessage
+              this.setNestedError(errorObject, errorSubKey.split('.'), errorMessage)
             }
           } else {
             this._errors[targetKey] = errorMessage
@@ -773,6 +1115,13 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         continue
       }
 
+      if (isPropertyAwareObject(currentVal)) {
+        this.state[key] = restorePropertyAwareStructure(currentVal, newVal) as FormBody[typeof key]
+        this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
+        this.touched[key] = true
+        continue
+      }
+
       if (Array.isArray(newVal) && Array.isArray(currentVal)) {
         const merged = newVal.length === currentVal.length ? deepMergeArrays(currentVal, newVal) : newVal
         this.state[key] = merged as FormBody[typeof key]
@@ -827,6 +1176,17 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
     if (value instanceof PropertyAwareArray) {
       return [...value].map((item) => this.transformValue(item, parentKey))
+    }
+    if (isPropertyAwareObject(value)) {
+      const result: Record<string, unknown> = {}
+      const valueRecord = value as Record<string, unknown>
+      for (const prop in valueRecord) {
+        const transformed = this.transformValue(valueRecord[prop], parentKey)
+        if (transformed !== undefined) {
+          result[prop] = transformed
+        }
+      }
+      return result
     }
     if (Array.isArray(value)) {
       return value.map((item) => this.transformValue(item, parentKey))
@@ -913,6 +1273,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         this.replacePropertyAwareArray(typedKey, values as Array<ArrayItem<FormBody[typeof typedKey]>>)
         this.dirty[typedKey] = values.map(() => false)
         this.touched[typedKey] = false
+      } else if (isPropertyAwareObject(this.state[key])) {
+        this.state[key] = restorePropertyAwareStructure(this.original[key], cloneDeep(this.original[key]))
+        this.dirty[key as keyof FormBody] = false
+        this.touched[key as keyof FormBody] = false
       } else if (Array.isArray(this.original[key])) {
         this.state[key] = cloneDeep(this.original[key])
         this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key])
@@ -998,70 +1362,70 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     for (const key of Object.keys(this.state) as Array<FormKey<FormBody>>) {
       const value = this.state[key]
       if (value instanceof PropertyAwareArray) {
-        const arrayProps = [...value].map((item, index) => {
-          if (isRecord(item)) {
-            const elementProps: Record<string, FieldProperty<unknown>> = {}
-            for (const innerKey of Object.keys(item)) {
-              elementProps[innerKey] = {
-                model: computed({
-                  get: () => {
-                    const current = value[index]
-                    return isRecord(current) ? current[innerKey] : undefined
-                  },
-                  set: (newVal) => {
-                    const current = value[index]
-                    if (isRecord(current)) {
-                      current[innerKey] = newVal
-                    }
-                    const updatedElement = value[index]
-                    const originalElement = (this.original[key] as PropertyAwareArray)[index]
-                    this.setArrayDirty(key, index, this.computeDirtyState(updatedElement, originalElement))
-                    this.touched[key] = true
-
-                    this.validateField(key)
-                    this.validateDependentFields(key)
-                  }
-                }),
-                errors: this.getArrayItemFieldErrors(key, index, innerKey),
-                dirty: this.getArrayItemDirty(key, index, innerKey),
-                touched: this.touched[key] || false
-              }
-            }
-            return elementProps
-          }
-
-          return {
-            value: {
-              model: computed({
-                get: () => value[index],
-                set: (newVal) => {
-                  value[index] = newVal as ArrayItem<FormBody[typeof key]>
-                  const updatedValue = value[index]
-                  const originalValue = (this.original[key] as PropertyAwareArray)[index]
-                  this.setArrayDirty(key, index, this.computeDirtyState(updatedValue, originalValue))
-                  this.touched[key] = true
-
-                  this.validateField(key)
-                  this.validateDependentFields(key)
-                }
-              }),
-              errors: this.getArrayItemErrorMessages(key, index),
-              dirty: this.getArrayItemDirtyValue(key, index),
-              touched: this.touched[key] || false
-            }
-          }
-        })
-
-        props[key] = arrayProps as FormProperties<FormBody>[typeof key]
+        props[key] = this.getOrCreateArrayWrappers(
+          key,
+          value as PropertyAwareArray<ArrayItem<FormBody[typeof key]>>
+        ) as FormProperties<FormBody>[typeof key]
         continue
       }
 
-      props[key] = {
-        model: this._model[key],
-        errors: this.getFieldErrors(key),
-        dirty: this.dirty[key] || false,
-        touched: this.touched[key] || false
-      } as FormProperties<FormBody>[typeof key]
+      if (isPropertyAwareObject(value)) {
+        props[key] = this.createObjectWrapperFromShape(
+          key,
+          value,
+          (path) => {
+            let current: unknown = this.state[key]
+            for (const segment of path) {
+              if (!isRecord(current)) {
+                return undefined
+              }
+
+              current = current[segment]
+            }
+            return current
+          },
+          (path, newValue) => {
+            const current: unknown = this.state[key]
+            if (!isRecord(current)) {
+              return
+            }
+
+            const segments = [...path]
+            const last = segments.pop()
+            if (last === undefined) {
+              return
+            }
+
+            let record = current
+            for (const segment of segments) {
+              if (!isRecord(record[segment])) {
+                return
+              }
+              record = record[segment]
+            }
+
+            record[last] = newValue
+            this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key])
+            this.touched[key] = true
+            this.validateField(key)
+            this.validateDependentFields(key)
+          },
+          (path) => this.getObjectFieldErrors(String(key), path),
+          (path) => this.getNestedDirtyValue(this.dirty[key], path),
+          () => this.touched[key] || false
+        ) as FormProperties<FormBody>[typeof key]
+        continue
+      }
+
+      props[key] = this.createFieldProperty(
+        () => this._model[key].value,
+        (newValue) => {
+          this._model[key].value = newValue
+        },
+        () => this.getFieldErrors(key),
+        () => (this.dirty[key] as boolean) || false,
+        () => this.touched[key] || false
+      ) as FormProperties<FormBody>[typeof key]
     }
     return props as FormProperties<FormBody>
   }
@@ -1073,50 +1437,11 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    */
   public isDirty(field?: keyof FormBody): boolean {
     if (field !== undefined) {
-      const dirtyState = this.dirty[field]
-
-      if (typeof dirtyState === 'boolean') {
-        return dirtyState
-      }
-
-      if (Array.isArray(dirtyState)) {
-        return dirtyState.some((item) => {
-          if (typeof item === 'boolean') {
-            return item
-          }
-          if (item && typeof item === 'object') {
-            return Object.values(item).some((v) => v === true)
-          }
-          return false
-        })
-      }
-
-      if (dirtyState && typeof dirtyState === 'object') {
-        return Object.values(dirtyState).some((v) => v === true)
-      }
-
-      return false
+      return this.getNestedDirtyValue(this.dirty[field], [])
     }
 
     for (const key in this.dirty) {
-      const dirtyState = this.dirty[key as keyof FormBody]
-
-      if (typeof dirtyState === 'boolean' && dirtyState) {
-        return true
-      }
-
-      if (Array.isArray(dirtyState)) {
-        for (const item of dirtyState) {
-          if (typeof item === 'boolean' && item) {
-            return true
-          }
-          if (item && typeof item === 'object' && Object.values(item).some((v) => v === true)) {
-            return true
-          }
-        }
-      }
-
-      if (dirtyState && typeof dirtyState === 'object' && Object.values(dirtyState).some((v) => v === true)) {
+      if (this.getNestedDirtyValue(this.dirty[key as keyof FormBody], [])) {
         return true
       }
     }

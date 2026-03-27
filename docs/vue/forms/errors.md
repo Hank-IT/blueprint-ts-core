@@ -28,7 +28,25 @@ form.fillErrors(error.response.data.errors)
 `fillErrors` supports:
 - direct field keys (e.g. `email`)
 - array dot notation where the 2nd segment is a numeric index (e.g. `positions.0.value`)
+- nested object paths for `PropertyAwareObject` fields (e.g. `payload.command`)
+- nested array + object paths (e.g. `steps.0.payload.command`)
 - remapping via `errorMap` (including mapping one server key to multiple fields)
+
+Examples:
+
+```ts
+form.fillErrors({
+  'payload.command': ['The command is required.'],
+  'steps.0.payload.command': ['The step command is required.']
+})
+```
+
+```vue
+<template>
+  <div>{{ form.properties.payload.command.errors[0] }}</div>
+  <div>{{ form.properties.steps[0].payload.command.errors[0] }}</div>
+</template>
+```
 
 ## Checking For Errors
 

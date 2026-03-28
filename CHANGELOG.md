@@ -1,3 +1,11 @@
+## 4.1.0-beta.5 - 2026-03-28 (beta)
+
+# [4.1.0-beta.5](/compare/4.1.0-beta.4...4.1.0-beta.5) (2026-03-28)
+
+
+### Features
+
+* Added configurable persistence restore policy 278a659
 ## 4.1.0-beta.4 - 2026-03-28 (beta)
 
 # [4.1.0-beta.4](/compare/4.1.0-beta.3...4.1.0-beta.4) (2026-03-28)

@@ -1,3 +1,20 @@
+## 4.1.0-beta.4 - 2026-03-28 (beta)
+
+# [4.1.0-beta.4](/compare/4.1.0-beta.3...4.1.0-beta.4) (2026-03-28)
+
+
+### Bug Fixes
+
+* Fix persistence restore for property-aware objects in arrays 1bb2c62
+
+
+### Features
+
+* Add stable property-aware wrappers and nested object fields to BaseForm 431a2c6
+* Added error getters 8ca7575
+* Added support for laravel precog validation rules fc6526a
+* Added validation groups 428cb81
+* Preserve sibling nested errors when editing property-aware fields bd1d493
 ## 4.1.0-beta.3 - 2026-03-25 (beta)
 
 # [4.1.0-beta.3](/compare/4.1.0-beta.2...4.1.0-beta.3) (2026-03-25)

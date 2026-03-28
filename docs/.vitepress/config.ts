@@ -91,7 +91,7 @@ export default defineConfig({
               { text: 'Building Payloads', link: '/vue/forms/payloads' },
               { text: 'Errors', link: '/vue/forms/errors' },
               { text: 'Persistence', link: '/vue/forms/persistence' },
-              { text: 'Arrays', link: '/vue/forms/arrays' },
+              { text: 'Arrays & Objects', link: '/vue/forms/arrays' },
               { text: 'Utilities', link: '/vue/forms/utilities' }
             ]
           },

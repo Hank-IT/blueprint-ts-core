@@ -5,6 +5,8 @@ import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDrive
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray, type PropertyAwareField } from './PropertyAwareArray'
 import { PropertyAwareObject, PROPERTY_AWARE_OBJECT_MARKER } from './PropertyAwareObject'
+import { StrictPersistenceRestorePolicy } from './persistence/StrictPersistenceRestorePolicy'
+import { type PersistenceDebugEvent, type PersistenceRestorePolicy } from './persistence/types'
 import { BaseRule } from './validation/rules/BaseRule'
 import { ValidationMode, type ValidationGroups, type ValidationRules } from './validation'
 
@@ -230,50 +232,6 @@ function restorePropertyAwareStructure<T>(defaults: T, value: unknown): T {
   return restoreSerializedPropertyAwareValue(value as T)
 }
 
-function normalizePropertyAwareEqualityValue<T>(value: T): T {
-  if (value instanceof PropertyAwareArray) {
-    return Array.from(value, (item) => normalizePropertyAwareEqualityValue(item)) as T
-  }
-
-  if (isPropertyAwareObject(value) || isSerializedPropertyAwareObject(value)) {
-    const normalized: Record<string, unknown> = {}
-
-    for (const [key, child] of Object.entries(value)) {
-      if (key === PROPERTY_AWARE_OBJECT_MARKER) {
-        continue
-      }
-
-      normalized[key] = normalizePropertyAwareEqualityValue(child)
-    }
-
-    return normalized as T
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizePropertyAwareEqualityValue(item)) as T
-  }
-
-  if (isRecord(value)) {
-    const normalized: Record<string, unknown> = {}
-
-    for (const [key, child] of Object.entries(value)) {
-      normalized[key] = normalizePropertyAwareEqualityValue(child)
-    }
-
-    return normalized as T
-  }
-
-  return value
-}
-
-/**
- * Compare values while ignoring persistence-only markers on property-aware structures.
- * This avoids false negatives when comparing persisted state to defaults.
- */
-function propertyAwareDeepEqual<T>(a: T, b: T): boolean {
-  return isEqual(normalizePropertyAwareEqualityValue(a), normalizePropertyAwareEqualityValue(b))
-}
-
 /**
  * A generic base class for forms.
  *
@@ -313,6 +271,25 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected getPersistenceDriver(_suffix: string | undefined): PersistenceDriver {
     return new NonPersistentDriver()
+  }
+
+  protected getPersistenceRestorePolicy(): PersistenceRestorePolicy<FormBody> {
+    return new StrictPersistenceRestorePolicy<FormBody>()
+  }
+
+  protected shouldLogPersistenceDebug(): boolean {
+    return false
+  }
+
+  protected logPersistenceDebug(event: PersistenceDebugEvent<FormBody>): void {
+    if (!this.shouldLogPersistenceDebug()) {
+      return
+    }
+
+    const suffixLabel = event.persistSuffix ? ` (${event.persistSuffix})` : ''
+    const details = event.details ? ` ${JSON.stringify(event.details)}` : ''
+
+    console.debug(`[BaseForm persistence] ${event.formName}${suffixLabel}: ${event.action} (${event.reason})${details}`)
   }
 
   /**
@@ -475,20 +452,37 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     const driver = this.getPersistenceDriver(options?.persistSuffix)
 
     if (persist) {
-      const persisted = driver.get<PersistedForm<FormBody>>(this.constructor.name)
-      if (persisted && propertyAwareDeepEqual(defaults, persisted.original)) {
-        initialData = restorePropertyAwareStructure(defaults, persisted.state)
-        this.original = restorePropertyAwareStructure(defaults, cloneDeep(persisted.original))
-        this.dirty = reactive(persisted.dirty) as DirtyMap<FormBody>
-        this.touched = reactive(persisted.touched || {}) as Record<keyof FormBody, boolean>
+      const persisted = driver.get<PersistedForm<FormBody>>(this.constructor.name) ?? null
+      const restoreDecision = this.getPersistenceRestorePolicy().resolve({
+        formName: this.constructor.name,
+        persistSuffix: options?.persistSuffix,
+        defaults,
+        persisted
+      })
+
+      this.logPersistenceDebug({
+        formName: this.constructor.name,
+        persistSuffix: options?.persistSuffix,
+        action: restoreDecision.action,
+        reason: restoreDecision.reason,
+        details: restoreDecision.details
+      })
+
+      if (restoreDecision.action === 'restore' && restoreDecision.persisted) {
+        initialData = restorePropertyAwareStructure(defaults, restoreDecision.persisted.state)
+        this.original = restorePropertyAwareStructure(defaults, cloneDeep(restoreDecision.persisted.original))
+        this.dirty = reactive(restoreDecision.persisted.dirty) as DirtyMap<FormBody>
+        this.touched = reactive(restoreDecision.persisted.touched || {}) as Record<keyof FormBody, boolean>
       } else {
-        console.log('Discarding persisted data for ' + this.constructor.name + " because it doesn't match the defaults.")
         initialData = defaults
         this.original = restorePropertyAwareStructure(defaults, cloneDeep(defaults))
         const init = this.initDirtyTouched(defaults)
         this.dirty = init.dirty
         this.touched = init.touched
-        driver.remove(this.constructor.name)
+
+        if (restoreDecision.action === 'discard') {
+          driver.remove(this.constructor.name)
+        }
       }
     } else {
       initialData = defaults
@@ -514,7 +508,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
           set: (newVal: PropertyAwareInput<FormBody[typeof key]>) => {
             const next = Array.isArray(newVal) ? Array.from(newVal) : []
             this.replacePropertyAwareArray(key as keyof FormBody, next)
-            this.dirty[key as keyof FormBody] = next.map(() => false)
+            this.dirty[key as keyof FormBody] = this.computeDirtyState(this.state[key], this.original[key]) as DirtyMap<FormBody>[typeof key]
             this.markFieldUpdated(key as keyof FormBody, driver)
           }
         })
@@ -1581,7 +1575,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         const values = newVal instanceof PropertyAwareArray || Array.isArray(newVal) ? Array.from(newVal) : []
         this.replacePropertyAwareArray(key, values)
 
-        this.dirty[key] = values.map(() => false)
+        this.dirty[key] = this.computeDirtyState(this.state[key], this.original[key]) as DirtyMap<FormBody>[typeof key]
         this.touched[key] = true
         continue
       }

@@ -6,7 +6,27 @@ import { SessionStorageDriver } from '../../persistenceDrivers/SessionStorageDri
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
 import { PropertyAwareArray, type PropertyAwareField, type PropertyAware } from './PropertyAwareArray'
 import { PropertyAwareObject } from './PropertyAwareObject'
+import { StrictPersistenceRestorePolicy } from './persistence'
+import type { PersistenceDebugEvent, PersistenceRestoreContext, PersistenceRestorePolicy, PersistenceRestoreResult } from './persistence'
 
-export { BaseForm, propertyAwareToRaw, PropertyAwareArray, PropertyAwareObject, NonPersistentDriver, SessionStorageDriver, LocalStorageDriver }
+export {
+  BaseForm,
+  propertyAwareToRaw,
+  PropertyAwareArray,
+  PropertyAwareObject,
+  NonPersistentDriver,
+  SessionStorageDriver,
+  LocalStorageDriver,
+  StrictPersistenceRestorePolicy
+}
 
-export type { PersistedForm, PersistenceDriver, PropertyAwareField, PropertyAware }
+export type {
+  PersistedForm,
+  PersistenceDriver,
+  PropertyAwareField,
+  PropertyAware,
+  PersistenceDebugEvent,
+  PersistenceRestoreContext,
+  PersistenceRestorePolicy,
+  PersistenceRestoreResult
+}

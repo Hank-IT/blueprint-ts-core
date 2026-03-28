@@ -7,6 +7,7 @@ import { JsonBodyFactory } from '../../../src/requests/factories/JsonBodyFactory
 import { RequestMethodEnum } from '../../../src/requests/RequestMethod.enum'
 import type { RequestDriverContract } from '../../../src/requests/contracts/RequestDriverContract'
 import type { ResponseHandlerContract } from '../../../src/requests/drivers/contracts/ResponseHandlerContract'
+import type { PersistenceRestoreContext, PersistenceRestorePolicy, PersistenceRestoreResult } from '../../../src/vue/forms'
 
 interface TestFormState {
   name: string
@@ -182,6 +183,60 @@ class PersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, Neste
   }
 }
 
+class DebugPersistentNestedBehaviorForm extends PersistentNestedBehaviorForm {
+  protected override shouldLogPersistenceDebug(): boolean {
+    return true
+  }
+}
+
+class RestoreWheneverPersistedPolicy<FormBody extends object> implements PersistenceRestorePolicy<FormBody> {
+  public resolve(context: PersistenceRestoreContext<FormBody>): PersistenceRestoreResult<FormBody> {
+    if (context.persisted) {
+      return {
+        action: 'restore',
+        reason: 'restored_by_test_policy',
+        persisted: context.persisted
+      }
+    }
+
+    return {
+      action: 'ignore',
+      reason: 'no_persisted_state'
+    }
+  }
+}
+
+class LenientPersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, NestedFormState> {
+  public constructor(defaultCommand = '') {
+    super(
+      {
+        payload: new PropertyAwareObject({
+          command: defaultCommand,
+          interpreter: 'powershell'
+        }),
+        steps: new PropertyAwareArray([
+          {
+            name: 'persisted-step',
+            payload: new PropertyAwareObject({
+              command: defaultCommand,
+              interpreter: 'bash'
+            })
+          }
+        ])
+      },
+      { persist: true, persistSuffix: 'lenient-persistence-test' }
+    )
+  }
+
+  protected override getPersistenceDriver(suffix: string | undefined): SessionStorageDriver {
+    return new SessionStorageDriver(suffix)
+  }
+
+  protected override getPersistenceRestorePolicy(): PersistenceRestorePolicy<NestedFormState> {
+    return new RestoreWheneverPersistedPolicy<NestedFormState>()
+  }
+}
+
 class AsyncValidationResponse extends BaseResponse<undefined> {
   public getAcceptHeader(): string {
     return 'application/json'
@@ -319,6 +374,8 @@ describe('BaseForm behavior', () => {
     BaseRequest.setRequestDriver({
       send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
     })
+    window.sessionStorage.clear()
+    vi.restoreAllMocks()
   })
 
   it('tracks dirty and touched on simple fields', () => {
@@ -342,6 +399,16 @@ describe('BaseForm behavior', () => {
     first.value.model.value = 'b'
 
     expect(form.properties.positions[0].value.dirty).toBe(true)
+    expect(form.isDirty('positions')).toBe(true)
+  })
+
+  it('tracks dirty state when a top-level PropertyAwareArray field is replaced via fillState', () => {
+    const form = new BehaviorForm()
+
+    form.fillState({
+      positions: new PropertyAwareArray([{ value: 'changed' }])
+    })
+
     expect(form.isDirty('positions')).toBe(true)
   })
 
@@ -532,6 +599,53 @@ describe('BaseForm behavior', () => {
     expect(restoredForm.properties.steps[0].payload.interpreter.model.value).toBe('bash')
 
     sessionStorage.clear()
+  })
+
+  it('does not log persistence debug messages by default when no persisted state exists', () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+
+    new PersistentNestedBehaviorForm()
+
+    expect(debugSpy).not.toHaveBeenCalled()
+  })
+
+  it('logs persistence restore details only when debug logging is enabled', () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+
+    const initialForm = new DebugPersistentNestedBehaviorForm()
+    initialForm.addStep()
+
+    new DebugPersistentNestedBehaviorForm()
+
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[BaseForm persistence] DebugPersistentNestedBehaviorForm (nested-persistence-test): restore (defaults_match)'
+      )
+    )
+  })
+
+  it('allows forms to override the persistence restore policy', () => {
+    const initialForm = new LenientPersistentNestedBehaviorForm()
+    initialForm.fillState({
+      payload: new PropertyAwareObject({
+        command: 'persisted-root',
+        interpreter: 'powershell'
+      }),
+      steps: new PropertyAwareArray([
+        {
+          name: 'persisted-step',
+          payload: new PropertyAwareObject({
+            command: 'persisted-step-command',
+            interpreter: 'bash'
+          })
+        }
+      ])
+    })
+
+    const restoredForm = new LenientPersistentNestedBehaviorForm('changed-default')
+
+    expect(restoredForm.properties.payload.command.model.value).toBe('persisted-root')
+    expect(restoredForm.properties.steps[0].payload.command.model.value).toBe('persisted-step-command')
   })
 
   it('runs Precognitive rules asynchronously and clears only targeted async errors on success', async () => {

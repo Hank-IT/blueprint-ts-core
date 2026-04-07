@@ -1,6 +1,7 @@
 import { BaseForm, propertyAwareToRaw } from './BaseForm'
 import { type PersistedForm } from './types/PersistedForm'
 import { LocalStorageDriver } from '../../persistenceDrivers/LocalStorageDriver'
+import { MemoryPersistenceDriver } from '../../persistenceDrivers/MemoryPersistenceDriver'
 import { NonPersistentDriver } from '../../persistenceDrivers/NonPersistentDriver'
 import { SessionStorageDriver } from '../../persistenceDrivers/SessionStorageDriver'
 import { type PersistenceDriver } from '../../persistenceDrivers/types/PersistenceDriver'
@@ -17,6 +18,7 @@ export {
   NonPersistentDriver,
   SessionStorageDriver,
   LocalStorageDriver,
+  MemoryPersistenceDriver,
   StrictPersistenceRestorePolicy
 }
 

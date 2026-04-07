@@ -36,6 +36,7 @@ export abstract class BaseRequest<
   protected abortSignal: AbortSignal | undefined = undefined
   protected concurrencyOptions: RequestConcurrencyOptions | undefined = undefined
   protected additionalHeaders: HeadersContract = {}
+  protected instanceRequestDriver: RequestDriverContract | undefined = undefined
   /* @ts-expect-error Ignore generics */
   protected events: { [key in RequestEvents]?: EventHandlerCallback[] } = {}
 
@@ -73,6 +74,12 @@ export abstract class BaseRequest<
 
   public setConcurrency(options?: RequestConcurrencyOptions): this {
     this.concurrencyOptions = options
+
+    return this
+  }
+
+  public setRequestDriver(driver: RequestDriverContract): this {
+    this.instanceRequestDriver = driver
 
     return this
   }
@@ -335,7 +342,7 @@ export abstract class BaseRequest<
   }
 
   protected resolveRequestDriver(): RequestDriverContract {
-    return this.getRequestDriver() ?? BaseRequest.requestDriver
+    return this.instanceRequestDriver ?? this.getRequestDriver() ?? BaseRequest.requestDriver
   }
 
   protected getRequestDriver(): RequestDriverContract | undefined {

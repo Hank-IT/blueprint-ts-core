@@ -65,6 +65,17 @@ In case your backend lives on a separate domain, you may specify a default base 
 BaseRequest.setDefaultBaseUrl('https://example.com')
 ```
 
+## Driver Scope
+
+Blueprint supports three driver scopes:
+
+- global via `BaseRequest.setRequestDriver(...)`
+- per-request-class via `getRequestDriver()`
+- per-request-instance via `request.setRequestDriver(...)`
+
+Use the global driver for your normal application transport. Use the instance-level setter in tests or one-off cases
+where only a single request object should use a different driver.
+
 ## Example: Expense Index Request
 
 The following example demonstrates how to define a GET request to the `/api/v1/expenses` endpoint:
@@ -199,3 +210,5 @@ const body = response.getBody() // Type: CreateExpenseResponseBody
 ```
 
 Note: If you use Laravel or an API that wraps payloads under a `data` key, consider using `JsonBaseRequest` from the Laravel integration.
+
+For request mocking, unordered matching, predicate helpers, and response builders, see [Testing](/services/requests/testing).

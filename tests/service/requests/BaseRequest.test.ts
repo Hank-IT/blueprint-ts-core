@@ -267,4 +267,52 @@ describe('BaseRequest', () => {
     expect(requestDriver.send).toHaveBeenCalledTimes(1)
     expect(globalDriver.send).not.toHaveBeenCalled()
   })
+
+  it('uses an instance-specific driver without changing the global driver', async () => {
+    const globalDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+    const instanceDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+
+    BaseRequest.setRequestDriver(globalDriver)
+
+    const request = new TestRequest()
+    request.setRequestDriver(instanceDriver)
+
+    await request.send()
+
+    expect(instanceDriver.send).toHaveBeenCalledTimes(1)
+    expect(globalDriver.send).not.toHaveBeenCalled()
+  })
+
+  it('prefers an instance-specific driver over a request-defined driver', async () => {
+    const globalDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+    const requestDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+    const instanceDriver: RequestDriverContract = {
+      send: vi.fn().mockResolvedValue(createResponseHandler()),
+    }
+
+    BaseRequest.setRequestDriver(globalDriver)
+
+    class DriverSpecificRequest extends TestRequest {
+      protected override getRequestDriver(): RequestDriverContract {
+        return requestDriver
+      }
+    }
+
+    const request = new DriverSpecificRequest()
+    request.setRequestDriver(instanceDriver)
+
+    await request.send()
+
+    expect(instanceDriver.send).toHaveBeenCalledTimes(1)
+    expect(requestDriver.send).not.toHaveBeenCalled()
+    expect(globalDriver.send).not.toHaveBeenCalled()
+  })
 })

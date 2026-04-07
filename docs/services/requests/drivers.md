@@ -82,6 +82,23 @@ Important: request-defined drivers do not inherit configuration from the globall
 upload request needs credential support or shared headers, configure them on the `XMLHttpRequestDriver` you return from
 `getRequestDriver()`.
 
+## Per-Instance Driver
+
+If only one request instance should use a different driver, set it directly on the request instead of changing the
+global driver:
+
+```typescript
+import { FetchDriver, MockRequestDriver } from '@blueprint-ts/core/requests'
+
+BaseRequest.setRequestDriver(new FetchDriver())
+
+const request = new UserShowRequest()
+request.setRequestDriver(new MockRequestDriver())
+```
+
+This overrides the driver only for that request object. It is especially useful in tests where you want to mock one
+request instance without subclassing the request just to override `getRequestDriver()`.
+
 ## Custom Driver
 
 To implement your own driver, implement `RequestDriverContract` and return a `ResponseHandlerContract`:
@@ -113,3 +130,14 @@ Register your driver during app boot:
 ```typescript
 BaseRequest.setRequestDriver(new CustomDriver())
 ```
+
+## Testing
+
+For request mocking and assertions in tests, see [Testing](/services/requests/testing). `MockRequestDriver` supports:
+
+- strict ordered matching by default
+- opt-in unordered matching
+- predicate-based request matchers for headers, query params, and JSON bodies
+- capture-then-assert flows through request history
+- convenience response builders such as `jsonResponse(...)` and `validationError(...)`
+- global install/reset helpers and per-instance driver overrides

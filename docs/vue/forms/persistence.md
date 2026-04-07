@@ -18,6 +18,27 @@ Notes:
 - `persist: false` disables automatic rehydration and background persistence.
 - `File`/`Blob` values are not JSON-serializable and should use `{ persist: false }`.
 
+## Testing With In-Memory Persistence
+
+When you want to assert persisted form drafts in tests without touching browser storage, use `MemoryPersistenceDriver`:
+
+```ts
+import { BaseForm, MemoryPersistenceDriver, type PersistenceDriver } from '@blueprint-ts/core/vue/forms'
+
+export class TestForm extends BaseForm<RequestPayload, FormState> {
+  protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
+    return new MemoryPersistenceDriver(suffix)
+  }
+}
+
+beforeEach(() => {
+  MemoryPersistenceDriver.clear()
+})
+```
+
+Because the driver shares in-memory state across instances, one form instance can persist a draft and a later instance
+can restore it in the same test.
+
 ## Default Restore Behavior
 
 The built-in `StrictPersistenceRestorePolicy` behaves like this:

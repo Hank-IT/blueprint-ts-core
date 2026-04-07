@@ -4,6 +4,7 @@ import { type BodyFactoryContract } from './BodyFactoryContract'
 import { type HeadersContract } from './HeadersContract'
 import { type RequestConcurrencyOptions } from '../types/RequestConcurrencyOptions'
 import { type ResponseHandlerContract } from '../drivers/contracts/ResponseHandlerContract'
+import { type RequestDriverContract } from './RequestDriverContract'
 
 export type EventHandlerCallback<T> = (value: T) => void
 export interface SendRequestOptions {
@@ -42,4 +43,6 @@ export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterf
   setAbortSignal(signal: AbortSignal): this
 
   setConcurrency(options?: RequestConcurrencyOptions): this
+
+  setRequestDriver(driver: RequestDriverContract): this
 }

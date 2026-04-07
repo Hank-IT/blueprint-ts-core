@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { BaseForm, PropertyAwareArray, PropertyAwareObject, SessionStorageDriver } from '../../../src/vue/forms'
+import { BaseForm, MemoryPersistenceDriver, PropertyAwareArray, PropertyAwareObject, SessionStorageDriver } from '../../../src/vue/forms'
 import { PrecognitiveRule, RequiredRule, ValidationMode, type ValidationGroups, type ValidationRules } from '../../../src/vue/forms/validation'
 import { BaseRequest } from '../../../src/requests/BaseRequest'
 import { BaseResponse } from '../../../src/requests/responses/BaseResponse'
@@ -237,6 +237,39 @@ class LenientPersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody
   }
 }
 
+class MemoryPersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, NestedFormState> {
+  public constructor() {
+    super(
+      {
+        payload: new PropertyAwareObject({
+          command: '',
+          interpreter: 'powershell'
+        }),
+        steps: new PropertyAwareArray([])
+      },
+      { persist: true, persistSuffix: 'memory-persistence-test' }
+    )
+  }
+
+  protected override getPersistenceDriver(suffix: string | undefined): MemoryPersistenceDriver {
+    return new MemoryPersistenceDriver(suffix)
+  }
+
+  public addStep(): void {
+    this.fillState({
+      steps: new PropertyAwareArray([
+        {
+          name: 'persisted-step',
+          payload: new PropertyAwareObject({
+            command: 'echo persisted',
+            interpreter: 'bash'
+          })
+        }
+      ])
+    })
+  }
+}
+
 class AsyncValidationResponse extends BaseResponse<undefined> {
   public getAcceptHeader(): string {
     return 'application/json'
@@ -375,6 +408,7 @@ describe('BaseForm behavior', () => {
       send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
     })
     window.sessionStorage.clear()
+    MemoryPersistenceDriver.clear()
     vi.restoreAllMocks()
   })
 
@@ -599,6 +633,21 @@ describe('BaseForm behavior', () => {
     expect(restoredForm.properties.steps[0].payload.interpreter.model.value).toBe('bash')
 
     sessionStorage.clear()
+  })
+
+  it('can restore persisted drafts with MemoryPersistenceDriver for test assertions', () => {
+    const initialForm = new MemoryPersistentNestedBehaviorForm()
+    initialForm.addStep()
+
+    const probe = new MemoryPersistenceDriver('memory-persistence-test')
+    const persisted = probe.get<{ state: NestedFormState }>('MemoryPersistentNestedBehaviorForm')
+
+    expect(persisted?.state.steps).toHaveLength(1)
+
+    const restoredForm = new MemoryPersistentNestedBehaviorForm()
+
+    expect(restoredForm.properties.steps).toHaveLength(1)
+    expect(restoredForm.properties.steps[0].payload.command.model.value).toBe('echo persisted')
   })
 
   it('does not log persistence debug messages by default when no persisted state exists', () => {

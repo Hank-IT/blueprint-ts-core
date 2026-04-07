@@ -13,6 +13,42 @@ import { BinaryBody } from './bodies/BinaryBody'
 import { JsonBodyFactory } from './factories/JsonBodyFactory'
 import { BinaryBodyFactory, type BinaryBodyContent } from './factories/BinaryBodyFactory'
 import { FormDataFactory } from './factories/FormDataFactory'
+import {
+  MockRequestDriver,
+  MockRequestExpectationBuilder,
+  getMockRequestJsonBody,
+  getMockRequestQuery,
+  getMockRequestTextBody,
+  type MockNormalizedRequestBody,
+  type MockRequestBody,
+  type MockRequestBodyMatchContext,
+  type MockRequestBodyMatcher,
+  type MockRequestDriverOptions,
+  type MockRequestExpectation,
+  type MockRequestExpectationCriteria,
+  type MockRequestHeadersMatcher,
+  type MockRequestHistoryEntry,
+  type MockRequestMatchMode,
+  type MockRequestMethodMatcher,
+  type MockRequestPredicate,
+  type MockRequestQuery,
+  type MockRequestQueryMatcher,
+  type MockRequestUrlMatcher,
+  type MockResponseBody,
+  type MockResponseDefinition
+} from './drivers/mock/MockRequestDriver'
+import { MockRequestAssertionError } from './drivers/mock/MockRequestAssertionError'
+import {
+  emptyResponse,
+  expectJsonBody,
+  installMockRequestDriver,
+  jsonResponse,
+  matchHeaders,
+  matchQuery,
+  resetMockRequestDriver,
+  validationError,
+  type InstallMockRequestDriverOptions
+} from './drivers/mock/MockRequestTestHelpers'
 import { type BodyContent, type BodyContract } from './contracts/BodyContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
 import { type RequestDriverContract } from './contracts/RequestDriverContract'
@@ -46,7 +82,21 @@ export {
   JsonBodyFactory,
   BinaryBodyFactory,
   FormDataFactory,
-  XMLHttpRequestDriver
+  XMLHttpRequestDriver,
+  MockRequestDriver,
+  MockRequestExpectationBuilder,
+  MockRequestAssertionError,
+  expectJsonBody,
+  matchHeaders,
+  matchQuery,
+  jsonResponse,
+  validationError,
+  emptyResponse,
+  installMockRequestDriver,
+  resetMockRequestDriver,
+  getMockRequestJsonBody,
+  getMockRequestTextBody,
+  getMockRequestQuery
 }
 
 export type {
@@ -64,5 +114,23 @@ export type {
   HeadersContract,
   ResolvedHeadersContract,
   RequestConcurrencyOptions,
-  RequestUploadProgress
+  RequestUploadProgress,
+  MockNormalizedRequestBody,
+  MockRequestBody,
+  MockRequestBodyMatchContext,
+  MockRequestBodyMatcher,
+  MockRequestDriverOptions,
+  MockRequestExpectation,
+  MockRequestExpectationCriteria,
+  MockRequestHeadersMatcher,
+  MockRequestHistoryEntry,
+  MockRequestMatchMode,
+  MockRequestMethodMatcher,
+  MockRequestPredicate,
+  MockRequestQuery,
+  MockRequestQueryMatcher,
+  MockRequestUrlMatcher,
+  MockResponseBody,
+  MockResponseDefinition,
+  InstallMockRequestDriverOptions
 }

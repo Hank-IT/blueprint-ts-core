@@ -30,7 +30,8 @@ export default defineConfig({
               { text: 'Aborting Requests', link: '/services/requests/abort-requests' },
               { text: 'Events', link: '/services/requests/events' },
               { text: 'Bulk Requests', link: '/services/requests/bulk-requests' },
-              { text: 'Error Handling', link: '/services/requests/error-handling' }
+              { text: 'Error Handling', link: '/services/requests/error-handling' },
+              { text: 'Testing', link: '/services/requests/testing' }
             ]
           },
           {

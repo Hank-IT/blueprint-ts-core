@@ -10,6 +10,10 @@
 - Stable property-aware array item wrappers for reorderable UIs
 - Opt-in nested object fields via `PropertyAwareObject`
 
+When a form uses persistence, you can keep browser-backed drivers such as `SessionStorageDriver` in production and swap
+to `MemoryPersistenceDriver` in tests so draft restore behavior can be asserted without touching browser storage. See
+[Persistence](/vue/forms/persistence) for the persistence lifecycle, restore policy, and testing setup.
+
 **Getting Started**
 
 Minimal form class:

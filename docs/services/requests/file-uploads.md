@@ -157,6 +157,7 @@ payload supported by `BinaryBodyFactory`.
 
 - Upload progress requires `XMLHttpRequestDriver`. The default `FetchDriver` does not emit upload progress events.
 - Define `XMLHttpRequestDriver` inside the upload request class when that request should always support progress.
+- Use `request.setRequestDriver(...)` when only one request instance should use `XMLHttpRequestDriver`.
 - `BinaryBodyFactory` only sets `Content-Type` automatically when the body is a `Blob` with a non-empty `type`.
   For `ArrayBuffer` and typed-array uploads, pass the expected content type explicitly.
 - `XMLHttpRequestDriver` supports the same `corsWithCredentials` and `headers` options as `FetchDriver`, including

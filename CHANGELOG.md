@@ -1,3 +1,11 @@
+## 4.1.0-beta.6 - 2026-04-07 (beta)
+
+# [4.1.0-beta.6](/compare/4.1.0-beta.5...4.1.0-beta.6) (2026-04-07)
+
+
+### Features
+
+* Added mock support for requests, form and persistence drivers 0ab8076
 ## 4.1.0-beta.5 - 2026-03-28 (beta)
 
 # [4.1.0-beta.5](/compare/4.1.0-beta.4...4.1.0-beta.5) (2026-03-28)

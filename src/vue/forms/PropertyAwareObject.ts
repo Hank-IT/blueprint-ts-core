@@ -7,11 +7,9 @@ export const PROPERTY_AWARE_OBJECT_MARKER = '__propertyAwareObject'
 
 export class PropertyAwareObject<T extends object = Record<string, unknown>> {
   [key: string]: unknown
-  private readonly __propertyAwareObjectBrand!: void
+  declare private readonly __propertyAwareObjectBrand: void
 
   public constructor(values: T) {
-    void this.__propertyAwareObjectBrand
-
     Object.assign(this, values)
   }
 

@@ -26,14 +26,13 @@ export type PropertyAware<T> = {
 export class PropertyAwareArray<T = unknown> extends Array<T> {
   // Private brand to prevent plain arrays from being assignable to PropertyAwareArray.
   // This keeps conditional types from treating normal arrays as property-aware.
-  private readonly __propertyAwareArrayBrand!: void
+  declare private readonly __propertyAwareArrayBrand: void
   /**
    * Creates a new PropertyAwareArray instance
    */
   public constructor(items: T[] = []) {
     // Call Array constructor with array length
     super()
-    void this.__propertyAwareArrayBrand
 
     // Add items to the array
     if (items && items.length) {

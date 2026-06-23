@@ -4,7 +4,7 @@ import { type ResponseHandlerContract } from '../drivers/contracts/ResponseHandl
 export class InvalidJsonException extends ResponseException {
   public constructor(
     response: ResponseHandlerContract,
-    public cause: unknown
+    public override cause: unknown
   ) {
     super(response)
   }

@@ -1,5 +1,5 @@
 export class StaleResponseException extends Error {
-  public readonly cause: unknown
+  public override readonly cause: unknown
 
   public constructor(message: string = 'Stale response ignored', cause?: unknown) {
     super(message)

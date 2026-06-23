@@ -138,13 +138,10 @@ interface PackageFormBody {
 
 export class PackageForm extends BaseForm<PackageFormBody, PackageFormBody> {
   public constructor() {
-    super(
-      {
-        name: '',
-        version: ''
-      },
-      { persist: false }
-    )
+    super({
+      name: '',
+      version: ''
+    })
   }
 
   protected override defineRules(): ValidationRules<PackageFormBody> {
@@ -322,14 +319,11 @@ export interface PinUpdateFormBody {
 
 export class PinUpdateForm extends BaseForm<PinUpdateFormBody, PinUpdateFormBody> {
   public constructor() {
-    super(
-      {
-        current_pin: '',
-        new_pin: '',
-        new_pin_confirmation: ''
-      },
-      { persist: false }
-    )
+    super({
+      current_pin: '',
+      new_pin: '',
+      new_pin_confirmation: ''
+    })
   }
 
   protected override defineRules(): ValidationRules<PinUpdateFormBody> {

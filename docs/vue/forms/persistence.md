@@ -1,12 +1,12 @@
 # Persistence
 
-Persistence is enabled by default. Persisted forms must define a stable `persistKey`:
+Persistence is disabled by default. Enable it with `persist: true` and a stable `persistKey`:
 
 ```ts
-super(defaults, { persistKey: 'profile-form' })
+super(defaults, { persist: true, persistKey: 'profile-form' })
 ```
 
-Disable persistence via `super(defaults, { persist: false })`.
+You can also pass `super(defaults, { persist: false })` when you want to make that choice explicit.
 
 Example:
 
@@ -19,11 +19,11 @@ protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
 See the Persistence service for available drivers and custom implementations: [Persistence](/services/persistence/).
 
 Notes:
-- `persistKey` is the semantic key used with the configured persistence driver.
+- `persist: true` enables automatic rehydration and background persistence.
+- `persistKey` is required when persistence is enabled and is the semantic key used with the configured persistence driver.
 - `persistSuffix` is passed to `getPersistenceDriver(suffix)` for namespacing.
 - Persisted state is restored through a restore policy. By default, Blueprint restores only when the stored `original` matches your current defaults.
-- `persist: false` disables automatic rehydration and background persistence.
-- `File`/`Blob` values are not JSON-serializable and should use `{ persist: false }`.
+- `File`/`Blob` values are not JSON-serializable and should not be used with form persistence.
 
 ## Testing With In-Memory Persistence
 
@@ -34,7 +34,7 @@ import { BaseForm, MemoryPersistenceDriver, type PersistenceDriver } from '@blue
 
 export class TestForm extends BaseForm<RequestPayload, FormState> {
   public constructor() {
-    super(defaults, { persistKey: 'test-form' })
+    super(defaults, { persist: true, persistKey: 'test-form' })
   }
 
   protected override getPersistenceDriver(suffix?: string): PersistenceDriver {

@@ -12,6 +12,8 @@ Production bundlers can minify class names. A class such as `UserState` can beco
 
 Persisted `State` and `BaseForm` instances now require an explicit `persistKey`. If persistence is enabled without `persistKey`, Blueprint throws a clear error.
 
+`BaseForm` persistence is also no longer enabled by default. Forms only persist when `persist: true` is set.
+
 ### How to Fix State
 
 Add a stable semantic key anywhere `persist: true` is used:
@@ -39,20 +41,22 @@ super(defaults, {
 
 ### How to Fix BaseForm
 
-`BaseForm` persistence is enabled by default. Add a stable key for persisted forms:
+Add `persist: true` and a stable key for persisted forms:
 
 ```typescript
 class ProfileForm extends BaseForm<ProfilePayload, ProfileState> {
   public constructor() {
     super(defaults, {
+      persist: true,
       persistKey: 'profile-form'
     })
   }
 }
 ```
 
-If the form should not persist, disable persistence explicitly:
+If the form should not persist, omit the options or keep `persist: false` for explicitness:
 
 ```typescript
+super(defaults)
 super(defaults, { persist: false })
 ```

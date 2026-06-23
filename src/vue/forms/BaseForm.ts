@@ -280,6 +280,14 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     return new NonPersistentDriver()
   }
 
+  private getActivePersistenceDriver(): PersistenceDriver | undefined {
+    if (this.options?.persist !== true) {
+      return undefined
+    }
+
+    return this.getPersistenceDriver(this.options.persistSuffix)
+  }
+
   protected getPersistenceRestorePolicy(): PersistenceRestorePolicy<FormBody> {
     return new StrictPersistenceRestorePolicy<FormBody>()
   }
@@ -365,11 +373,15 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   private persistState(driver?: PersistenceDriver): void {
-    if (this.options?.persist === false) {
+    if (this.options?.persist !== true) {
       return
     }
 
-    const persistDriver = driver ?? this.getPersistenceDriver(this.options?.persistSuffix)
+    const persistDriver = driver ?? this.getActivePersistenceDriver()
+    if (!persistDriver) {
+      return
+    }
+
     persistDriver.set(this.resolvePersistKey(), {
       state: toRaw(this.state),
       original: toRaw(this.original),
@@ -454,12 +466,12 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     defaults: FormBody,
     protected options?: BaseFormOptions
   ) {
-    const persist = options?.persist !== false
+    const persist = options?.persist === true
     this.persistKey = persist ? this.requirePersistKey(options) : options?.persistKey
     let initialData: FormBody
-    const driver = this.getPersistenceDriver(options?.persistSuffix)
+    const driver = persist ? this.getPersistenceDriver(options?.persistSuffix) : undefined
 
-    if (persist) {
+    if (persist && driver) {
       const persisted = driver.get<PersistedForm<FormBody>>(this.resolvePersistKey()) ?? null
       const restoreDecision = this.getPersistenceRestorePolicy().resolve({
         formName: this.constructor.name,
@@ -548,7 +560,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
     this._hasErrors = computed(() => Object.keys(this.flattenErrors()).length > 0)
 
-    if (persist) {
+    if (persist && driver) {
       watch(
         () => this.state,
         () => this.persistState(driver),
@@ -1396,7 +1408,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       }
     }
 
-    if (this.options?.persist !== false) {
+    if (this.options?.persist === true) {
       this.persistState()
     }
   }
@@ -1588,7 +1600,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   public fillState(data: Partial<FormBody>): void {
-    const driver = this.getPersistenceDriver(this.options?.persistSuffix)
+    const driver = this.getActivePersistenceDriver()
     for (const key of Object.keys(data) as Array<keyof FormBody>) {
       if (!Object.prototype.hasOwnProperty.call(data, key) || !(key in this.state)) {
         continue
@@ -1755,7 +1767,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   public reset(): void {
-    const driver = this.getPersistenceDriver(this.options?.persistSuffix)
+    const driver = this.getActivePersistenceDriver()
     for (const key in this.state) {
       if (this.state[key] instanceof PropertyAwareArray) {
         const originalValue = this.original[key] as PropertyAwareArray
@@ -1785,7 +1797,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   }
 
   protected addToArrayProperty<K extends keyof FormBody>(property: K, newElement: ArrayItem<FormBody[K]>): void {
-    const driver = this.getPersistenceDriver(this.options?.persistSuffix)
+    const driver = this.getActivePersistenceDriver()
     const arr = this.state[property]
     if (arr instanceof PropertyAwareArray) {
       arr.push(newElement)
@@ -1975,7 +1987,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
    * @param value The new value to set
    */
   public syncValue<K extends keyof FormBody>(key: K, value: FormBody[K]): void {
-    const driver = this.getPersistenceDriver(this.options?.persistSuffix)
+    const driver = this.getActivePersistenceDriver()
     const currentVal = this.state[key]
 
     if (currentVal instanceof PropertyAwareArray) {
@@ -2016,7 +2028,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       this.touched[key] = true
     }
 
-    if (this.options?.persist !== false) {
+    if (this.options?.persist === true) {
       this.persistState(driver)
     }
 

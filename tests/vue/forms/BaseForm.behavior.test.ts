@@ -635,8 +635,8 @@ describe('BaseForm behavior', () => {
     sessionStorage.clear()
   })
 
-  it('requires persistKey when form persistence is enabled', () => {
-    class MissingPersistKeyForm extends BaseForm<TestFormState, TestFormState> {
+  it('does not require persistKey when form persistence is omitted', () => {
+    class DefaultPersistenceForm extends BaseForm<TestFormState, TestFormState> {
       public constructor() {
         super({
           name: '',
@@ -647,11 +647,54 @@ describe('BaseForm behavior', () => {
       }
     }
 
+    expect(() => new DefaultPersistenceForm()).not.toThrow()
+  })
+
+  it('does not require persistKey when form persistence is explicitly disabled', () => {
+    expect(() => new BehaviorForm()).not.toThrow()
+  })
+
+  it('requires persistKey when form persistence is enabled', () => {
+    class MissingPersistKeyForm extends BaseForm<TestFormState, TestFormState> {
+      public constructor() {
+        super(
+          {
+            name: '',
+            start_date: '',
+            start_time: '',
+            positions: new PropertyAwareArray([{ value: 'a' }])
+          },
+          { persist: true }
+        )
+      }
+    }
+
     expect(() => new MissingPersistKeyForm()).toThrow('BaseForm persistence requires a stable persistKey option.')
   })
 
-  it('does not require persistKey when form persistence is disabled', () => {
-    expect(() => new BehaviorForm()).not.toThrow()
+  it('does not persist when persistKey is provided without enabling persistence', () => {
+    class PersistKeyOnlyForm extends BaseForm<TestFormState, TestFormState> {
+      public constructor() {
+        super(
+          {
+            name: '',
+            start_date: '',
+            start_time: '',
+            positions: new PropertyAwareArray([{ value: 'a' }])
+          },
+          { persistKey: 'key-only-form' }
+        )
+      }
+
+      protected override getPersistenceDriver(): MemoryPersistenceDriver {
+        return new MemoryPersistenceDriver()
+      }
+    }
+
+    const form = new PersistKeyOnlyForm()
+    form.fillState({ name: 'changed' })
+
+    expect(new MemoryPersistenceDriver().get('key-only-form')).toBeNull()
   })
 
   it('can restore persisted drafts with MemoryPersistenceDriver for test assertions', () => {

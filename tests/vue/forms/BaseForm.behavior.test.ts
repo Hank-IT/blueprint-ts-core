@@ -160,7 +160,7 @@ class PersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody, Neste
         }),
         steps: new PropertyAwareArray([])
       },
-      { persist: true, persistSuffix: 'nested-persistence-test' }
+      { persist: true, persistKey: 'persistent-nested-behavior-form', persistSuffix: 'nested-persistence-test' }
     )
   }
 
@@ -224,7 +224,7 @@ class LenientPersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody
           }
         ])
       },
-      { persist: true, persistSuffix: 'lenient-persistence-test' }
+      { persist: true, persistKey: 'lenient-persistent-nested-behavior-form', persistSuffix: 'lenient-persistence-test' }
     )
   }
 
@@ -247,7 +247,7 @@ class MemoryPersistentNestedBehaviorForm extends BaseForm<NestedFormRequestBody,
         }),
         steps: new PropertyAwareArray([])
       },
-      { persist: true, persistSuffix: 'memory-persistence-test' }
+      { persist: true, persistKey: 'memory-persistent-nested-behavior-form', persistSuffix: 'memory-persistence-test' }
     )
   }
 
@@ -635,12 +635,31 @@ describe('BaseForm behavior', () => {
     sessionStorage.clear()
   })
 
+  it('requires persistKey when form persistence is enabled', () => {
+    class MissingPersistKeyForm extends BaseForm<TestFormState, TestFormState> {
+      public constructor() {
+        super({
+          name: '',
+          start_date: '',
+          start_time: '',
+          positions: new PropertyAwareArray([{ value: 'a' }])
+        })
+      }
+    }
+
+    expect(() => new MissingPersistKeyForm()).toThrow('BaseForm persistence requires a stable persistKey option.')
+  })
+
+  it('does not require persistKey when form persistence is disabled', () => {
+    expect(() => new BehaviorForm()).not.toThrow()
+  })
+
   it('can restore persisted drafts with MemoryPersistenceDriver for test assertions', () => {
     const initialForm = new MemoryPersistentNestedBehaviorForm()
     initialForm.addStep()
 
     const probe = new MemoryPersistenceDriver('memory-persistence-test')
-    const persisted = probe.get<{ state: NestedFormState }>('MemoryPersistentNestedBehaviorForm')
+    const persisted = probe.get<{ state: NestedFormState }>('memory-persistent-nested-behavior-form')
 
     expect(persisted?.state.steps).toHaveLength(1)
 
@@ -668,7 +687,7 @@ describe('BaseForm behavior', () => {
 
     expect(debugSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        '[BaseForm persistence] DebugPersistentNestedBehaviorForm (nested-persistence-test): restore (defaults_match)'
+        '[BaseForm persistence] persistent-nested-behavior-form (DebugPersistentNestedBehaviorForm, nested-persistence-test): restore (defaults_match)'
       )
     )
   })

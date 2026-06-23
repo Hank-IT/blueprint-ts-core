@@ -47,7 +47,7 @@ describe('State', () => {
   it('imports values and persists when enabled', () => {
     const state = new TestState(
       { count: 1, nested: { value: 'a' }, items: [1] },
-      { persist: true }
+      { persist: true, persistKey: 'test-state' }
     )
 
     state.import({ count: 5 })
@@ -57,9 +57,9 @@ describe('State', () => {
   })
 
   it('loads persisted values when keys match', () => {
-    driver.set('TestState', { count: 9, nested: { value: 'persisted' }, items: [2] })
+    driver.set('test-state', { count: 9, nested: { value: 'persisted' }, items: [2] })
 
-    const state = new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: true })
+    const state = new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: true, persistKey: 'test-state' })
 
     expect(state.state.count).toBe(9)
     expect(state.state.nested.value).toBe('persisted')
@@ -67,12 +67,35 @@ describe('State', () => {
   })
 
   it('clears persisted values when keys mismatch', () => {
-    driver.set('TestState', { count: 9 })
+    driver.set('test-state', { count: 9 })
 
-    const state = new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: true })
+    const state = new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: true, persistKey: 'test-state' })
 
     expect(driver.get(state.persistKey)).toBeNull()
     expect(state.state.count).toBe(1)
+  })
+
+  it('uses persistSuffix with the configured persistKey', () => {
+    const state = new TestState(
+      { count: 1, nested: { value: 'a' }, items: [1] },
+      { persist: true, persistKey: 'test-state', persistSuffix: 'tenant-a' }
+    )
+
+    state.import({ count: 5 })
+
+    expect(state.persistKey).toBe('test-state_tenant-a')
+    expect(driver.get('test-state_tenant-a')).toEqual({ count: 5, nested: { value: 'a' }, items: [1] })
+  })
+
+  it('requires persistKey when persistence is enabled', () => {
+    expect(() => new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: true })).toThrow(
+      'State persistence requires a stable persistKey option.'
+    )
+  })
+
+  it('does not require persistKey when persistence is disabled or omitted', () => {
+    expect(() => new TestState({ count: 1, nested: { value: 'a' }, items: [1] })).not.toThrow()
+    expect(() => new TestState({ count: 1, nested: { value: 'a' }, items: [1] }, { persist: false })).not.toThrow()
   })
 
   it('subscribes to top-level and nested changes', async () => {

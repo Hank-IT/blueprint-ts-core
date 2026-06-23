@@ -1,6 +1,12 @@
 # Persistence
 
-Persistence is enabled by default. Disable it via `super(defaults, { persist: false })`.
+Persistence is enabled by default. Persisted forms must define a stable `persistKey`:
+
+```ts
+super(defaults, { persistKey: 'profile-form' })
+```
+
+Disable persistence via `super(defaults, { persist: false })`.
 
 Example:
 
@@ -13,6 +19,7 @@ protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
 See the Persistence service for available drivers and custom implementations: [Persistence](/services/persistence/).
 
 Notes:
+- `persistKey` is the semantic key used with the configured persistence driver.
 - `persistSuffix` is passed to `getPersistenceDriver(suffix)` for namespacing.
 - Persisted state is restored through a restore policy. By default, Blueprint restores only when the stored `original` matches your current defaults.
 - `persist: false` disables automatic rehydration and background persistence.
@@ -26,6 +33,10 @@ When you want to assert persisted form drafts in tests without touching browser 
 import { BaseForm, MemoryPersistenceDriver, type PersistenceDriver } from '@blueprint-ts/core/vue/forms'
 
 export class TestForm extends BaseForm<RequestPayload, FormState> {
+  public constructor() {
+    super(defaults, { persistKey: 'test-form' })
+  }
+
   protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
     return new MemoryPersistenceDriver(suffix)
   }
@@ -91,5 +102,7 @@ When enabled, Blueprint logs:
 - when no persisted state exists
 - when persisted state is restored
 - when persisted state is discarded and why
+
+The stable `persistKey` is the primary identifier in debug output. The form class name and suffix are included as context when available.
 
 This is useful when debugging why a draft was not restored without enabling noisy logging for all forms.

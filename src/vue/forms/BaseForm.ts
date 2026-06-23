@@ -73,6 +73,12 @@ interface AsyncValidationContext extends ValidationContext {
   skipAsyncValidation?: boolean
 }
 
+export interface BaseFormOptions {
+  persist?: boolean
+  persistKey?: string
+  persistSuffix?: string
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
@@ -262,6 +268,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
   private readonly asyncValidationDebouncers = new Map<keyof FormBody, DebouncedFunc<() => void>>()
   private readonly pendingAsyncValidationContexts = new Map<keyof FormBody, { token: number; context: ValidationContext }>()
   private readonly asyncValidationTokens = reactive<Record<string, number>>({})
+  private readonly persistKey: string | undefined
 
   /**
    * Returns the persistence driver to use.
@@ -286,10 +293,10 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
       return
     }
 
-    const suffixLabel = event.persistSuffix ? ` (${event.persistSuffix})` : ''
+    const context = event.persistSuffix ? `${event.formName}, ${event.persistSuffix}` : event.formName
     const details = event.details ? ` ${JSON.stringify(event.details)}` : ''
 
-    console.debug(`[BaseForm persistence] ${event.formName}${suffixLabel}: ${event.action} (${event.reason})${details}`)
+    console.debug(`[BaseForm persistence] ${event.persistKey} (${context}): ${event.action} (${event.reason})${details}`)
   }
 
   /**
@@ -363,7 +370,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     const persistDriver = driver ?? this.getPersistenceDriver(this.options?.persistSuffix)
-    persistDriver.set(this.constructor.name, {
+    persistDriver.set(this.resolvePersistKey(), {
       state: toRaw(this.state),
       original: toRaw(this.original),
       dirty: toRaw(this.dirty),
@@ -445,16 +452,18 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
   protected constructor(
     defaults: FormBody,
-    protected options?: { persist?: boolean; persistSuffix?: string }
+    protected options?: BaseFormOptions
   ) {
     const persist = options?.persist !== false
+    this.persistKey = persist ? this.requirePersistKey(options) : options?.persistKey
     let initialData: FormBody
     const driver = this.getPersistenceDriver(options?.persistSuffix)
 
     if (persist) {
-      const persisted = driver.get<PersistedForm<FormBody>>(this.constructor.name) ?? null
+      const persisted = driver.get<PersistedForm<FormBody>>(this.resolvePersistKey()) ?? null
       const restoreDecision = this.getPersistenceRestorePolicy().resolve({
         formName: this.constructor.name,
+        persistKey: this.resolvePersistKey(),
         persistSuffix: options?.persistSuffix,
         defaults,
         persisted
@@ -462,6 +471,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
 
       this.logPersistenceDebug({
         formName: this.constructor.name,
+        persistKey: this.resolvePersistKey(),
         persistSuffix: options?.persistSuffix,
         action: restoreDecision.action,
         reason: restoreDecision.reason,
@@ -481,7 +491,7 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
         this.touched = init.touched
 
         if (restoreDecision.action === 'discard') {
-          driver.remove(this.constructor.name)
+          driver.remove(this.resolvePersistKey())
         }
       }
     } else {
@@ -547,6 +557,22 @@ export abstract class BaseForm<RequestBody extends object, FormBody extends obje
     }
 
     this.validate()
+  }
+
+  private requirePersistKey(options?: BaseFormOptions): string {
+    if (!options?.persistKey) {
+      throw new Error('BaseForm persistence requires a stable persistKey option.')
+    }
+
+    return options.persistKey
+  }
+
+  private resolvePersistKey(): string {
+    if (!this.persistKey) {
+      throw new Error('BaseForm persistence requires a stable persistKey option.')
+    }
+
+    return this.persistKey
   }
 
   protected defineRules(): ValidationRules<FormBody> {

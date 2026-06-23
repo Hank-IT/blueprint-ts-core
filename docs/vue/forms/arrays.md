@@ -15,9 +15,12 @@ export interface FormWithPositions {
 
 export class MyComplexForm extends BaseForm<RequestType, FormWithPositions> {
   constructor() {
-    super({
-      positions: new PropertyAwareArray([{ id: 1, value: '' }])
-    })
+    super(
+      {
+        positions: new PropertyAwareArray([{ id: 1, value: '' }])
+      },
+      { persist: false }
+    )
   }
 
   public addPosition(): void {

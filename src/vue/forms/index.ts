@@ -1,4 +1,4 @@
-import { BaseForm, propertyAwareToRaw } from './BaseForm'
+import { BaseForm, propertyAwareToRaw, type BaseFormOptions } from './BaseForm'
 import { type PersistedForm } from './types/PersistedForm'
 import { LocalStorageDriver } from '../../persistenceDrivers/LocalStorageDriver'
 import { MemoryPersistenceDriver } from '../../persistenceDrivers/MemoryPersistenceDriver'
@@ -30,5 +30,6 @@ export type {
   PersistenceDebugEvent,
   PersistenceRestoreContext,
   PersistenceRestorePolicy,
-  PersistenceRestoreResult
+  PersistenceRestoreResult,
+  BaseFormOptions
 }

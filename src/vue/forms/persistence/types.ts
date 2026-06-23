@@ -2,6 +2,7 @@ import { type PersistedForm } from '../types/PersistedForm'
 
 export interface PersistenceRestoreContext<FormBody extends object> {
   formName: string
+  persistKey: string
   persistSuffix?: string | undefined
   defaults: FormBody
   persisted: PersistedForm<FormBody> | null
@@ -16,6 +17,7 @@ export interface PersistenceRestoreResult<FormBody extends object> {
 
 export interface PersistenceDebugEvent<FormBody extends object> {
   formName: string
+  persistKey: string
   persistSuffix?: string | undefined
   action: PersistenceRestoreResult<FormBody>['action']
   reason: string

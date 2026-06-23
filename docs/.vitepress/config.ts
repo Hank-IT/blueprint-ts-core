@@ -111,9 +111,10 @@ export default defineConfig({
       {
         text: 'Upgrading',
         items: [
-          { text: 'v1 to v2', link: '/upgrading/v1-to-v2' },
+          { text: 'v4 to v5', link: '/upgrading/v4-to-v5' },
+          { text: 'v3 to v4', link: '/upgrading/v3-to-v4' },
           { text: 'v2 to v3', link: '/upgrading/v2-to-v3' },
-          { text: 'v3 to v4', link: '/upgrading/v3-to-v4' }
+          { text: 'v1 to v2', link: '/upgrading/v1-to-v2' }
         ]
       }
     ],

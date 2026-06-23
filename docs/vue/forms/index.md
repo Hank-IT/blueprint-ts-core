@@ -41,7 +41,7 @@ export class MyForm extends BaseForm<RequestPayload, FormState> {
   public constructor() {
     super(
       { name: '', email: '' },
-      { persist: true, persistSuffix: 'optional-suffix' }
+      { persistKey: 'contact-form', persistSuffix: 'optional-suffix' }
     )
   }
 

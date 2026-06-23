@@ -46,6 +46,7 @@ class UserState extends State<UserStateInterface> {
       }, 
       {
         persist: true, // Enable persistence
+        persistKey: 'user-state', // Stable storage key used by persistence drivers
         persistSuffix: 'user' // Optional namespace for the storage key
       }
     );
@@ -135,7 +136,15 @@ userState.subscribe(
 ````
 
 ### State Persistence
-Enable state persistence by passing `persist: true` in the constructor options. You can optionally set `persistSuffix` to namespace the storage key. Override the method `getPersistenceDriver` to use different storage mechanisms:
+Enable state persistence by passing `persist: true` and a stable `persistKey` in the constructor options. The key should be a semantic string that does not depend on the runtime class name. You can optionally set `persistSuffix` to namespace the storage key. Override the method `getPersistenceDriver` to use different storage mechanisms:
+
+````typescript
+super(defaults, {
+  persist: true,
+  persistKey: 'user-preferences',
+  persistSuffix: 'tenant-a'
+})
+````
 
 ````typescript
 // Examples of different persistence drivers:

@@ -5,6 +5,7 @@ import { computed, ref, type Ref, watch, reactive } from 'vue'
 
 export interface StateOptions {
   persist?: boolean
+  persistKey?: string
   persistSuffix?: string
 }
 
@@ -57,8 +58,7 @@ export abstract class State<T extends object> {
   protected constructor(initial: T, options?: StateOptions) {
     this._initial = initial
     this._persist = !!options?.persist
-    const className = this.constructor.name
-    this._persistKey = className + (options?.persistSuffix ? `_${options.persistSuffix}` : '')
+    this._persistKey = this.resolvePersistKey(options)
     this._driver = this.getPersistenceDriver()
 
     let loaded: T | null = null
@@ -96,6 +96,18 @@ export abstract class State<T extends object> {
         }
       }) as Ref<T[typeof k]>
     }
+  }
+
+  private resolvePersistKey(options?: StateOptions): string {
+    if (this._persist && !options?.persistKey) {
+      throw new Error('State persistence requires a stable persistKey option.')
+    }
+
+    if (!options?.persistKey) {
+      return ''
+    }
+
+    return options.persistSuffix ? `${options.persistKey}_${options.persistSuffix}` : options.persistKey
   }
 
   /**

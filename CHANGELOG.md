@@ -1,3 +1,16 @@
+## 5.0.0 - 2026-06-23
+
+# [5.0.0](/compare/4.1.0...5.0.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* require stable persistence keys for state and forms 892b88b
+
+
+### Features
+
+* make form persistence opt-in 81c1c14
 ## 4.1.0 - 2026-04-13
 
 # [4.1.0](/compare/4.1.0-beta.6...4.1.0) (2026-04-13)

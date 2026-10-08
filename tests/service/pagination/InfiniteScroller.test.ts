@@ -1,101 +1,34 @@
 import { describe, expect, it } from 'vitest'
+import { computed } from 'vue'
 import { InfiniteScroller } from '../../../src/pagination/InfiniteScroller'
-import { PaginationDataDto } from '../../../src/pagination/dtos/PaginationDataDto'
-import type { PaginationDataDriverContract } from '../../../src/pagination/contracts/PaginationDataDriverContract'
-import type { ViewDriverFactoryContract } from '../../../src/pagination/contracts/ViewDriverFactoryContract'
-import type { ViewDriverContract } from '../../../src/pagination/contracts/ViewDriverContract'
-
-class StubViewDriver implements ViewDriverContract<number[]> {
-  private data: number[] = []
-  private total = 0
-  private currentPage: number
-  private pageSize: number
-
-  constructor(pageNumber: number, pageSize: number) {
-    this.currentPage = pageNumber
-    this.pageSize = pageSize
-  }
-
-  setData(data: number[]): void {
-    this.data = data
-  }
-
-  getData(): number[] {
-    return this.data
-  }
-
-  setTotal(value: number): void {
-    this.total = value
-  }
-
-  getTotal(): number {
-    return this.total
-  }
-
-  getCurrentPage(): number {
-    return this.currentPage
-  }
-
-  setPage(value: number): void {
-    this.currentPage = value
-  }
-
-  setPageSize(value: number): void {
-    this.pageSize = value
-  }
-
-  getPageSize(): number {
-    return this.pageSize
-  }
-
-  getLastPage(): number {
-    return Math.max(1, Math.ceil(this.total / this.pageSize))
-  }
-
-  getPages(): number[] {
-    return Array.from({ length: this.getLastPage() }, (_, i) => i + 1)
-  }
-}
-
-class StubViewDriverFactory implements ViewDriverFactoryContract {
-  public make<ResourceInterface>(pageNumber: number, pageSize: number): ViewDriverContract<ResourceInterface[]> {
-    return new StubViewDriver(pageNumber, pageSize) as ViewDriverContract<ResourceInterface[]>
-  }
-}
+import { ArrayDriver } from '../../../src/pagination/dataDrivers/ArrayDriver'
+import { VuePaginationDriverFactory } from '../../../src/pagination/factories/VuePaginationDriverFactory'
 
 describe('InfiniteScroller', () => {
-  it('concatenates data by default', async () => {
-    let call = 0
-    const dataDriver: PaginationDataDriverContract<number[]> = {
-      get: async () => {
-        call += 1
-        return new PaginationDataDto(call === 1 ? [1, 2] : [3], 3)
-      },
-    }
-
-    const paginator = new InfiniteScroller<number[]>(dataDriver, 1, 2, {
-      viewDriverFactory: new StubViewDriverFactory(),
-    })
-
+  it('appends subsequent pages and exposes reactive initialization and totals', async () => {
+    const paginator = new InfiniteScroller(new ArrayDriver([1, 2, 3]), 1, 2, { viewDriverFactory: new VuePaginationDriverFactory() })
+    const initialized = computed(() => paginator.isInitialized())
+    const rows = computed(() => paginator.getPageData())
+    expect(initialized.value).toBe(false)
     await paginator.load()
-    await paginator.load()
-
-    expect(paginator.getPageData()).toEqual([1, 2, 3])
+    expect(initialized.value).toBe(true)
+    expect(rows.value).toEqual([1, 2])
+    await paginator.toNextPage()
+    expect(rows.value).toEqual([1, 2, 3])
+    expect(paginator.getCurrentPage()).toBe(2)
+    expect(paginator.getTotal()).toBe(3)
   })
 
-  it('replaces data when replace is true', async () => {
-    const dataDriver: PaginationDataDriverContract<number[]> = {
-      get: async () => new PaginationDataDto([9], 1),
-    }
-
-    const paginator = new InfiniteScroller<number[]>(dataDriver, 1, 2, {
-      viewDriverFactory: new StubViewDriverFactory(),
-    })
-
-    ;(paginator as any).viewDriver.setData([1, 2])
-
-    await paginator.load(1, { replace: true })
-
-    expect(paginator.getPageData()).toEqual([9])
+  it.each(['flush', 'replace'] as const)('reloads without retaining previously appended rows when %s is set', async (option) => {
+    const driver = new ArrayDriver([1, 2, 3])
+    const paginator = new InfiniteScroller(driver, 1, 2, { viewDriverFactory: new VuePaginationDriverFactory() })
+    await paginator.load()
+    await paginator.toNextPage()
+    driver.setData([9, 10])
+    await paginator.load(1, { [option]: true })
+    expect(paginator.getPageData()).toEqual([9, 10])
+    expect(paginator.getTotal()).toBe(2)
+    expect(paginator.getCurrentPage()).toBe(1)
+    expect(paginator.isInitialized()).toBe(true)
   })
 })

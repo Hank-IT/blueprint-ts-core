@@ -13,11 +13,13 @@ Later sources override earlier ones. Header values can be strings or callbacks t
 Set headers once when you configure the driver:
 
 ```typescript
-BaseRequest.setRequestDriver(new FetchDriver({
+BaseRequest.getDefaultClient().setDriver(
+  new FetchDriver({
     headers: {
-        'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN')
-    },
-}))
+      'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN')
+    }
+  })
+)
 ```
 
 ## Per-Request Headers

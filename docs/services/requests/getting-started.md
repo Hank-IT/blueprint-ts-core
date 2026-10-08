@@ -1,214 +1,33 @@
 # Getting Started
 
-Each API endpoint is represented as a separate class that extends `BaseRequest`. This class specifies the HTTP Method,
-URL, and the expected request/response types.
+Configure one shared `RequestClient` during application startup, before constructing requests. It owns the base URL, transport, default headers and configuration, loader factory, subscriptions, and concurrency state.
 
-## Request Handling
+<<< ../../examples/v6.ts#startup
 
-The library leverages a fetch-based driver to perform HTTP requests. The following sections explain how to initialize
-the request driver and define custom requests.
+Define each endpoint as a request class. Requests capture the default client when constructed. Changing the default affects requests constructed afterward.
 
-## Initializing the Request Driver
+<<< ../../examples/v6.ts#request
 
-Before making any requests, you must initialize the appropriate request driver. This is done during your application's
-boot process by using the static `setRequestDriver` method.
+Send a body with `request.setBody({ name: 'Ada' }).send()`. Use [request context](./request-bodies#request-context) to pass application metadata to lifecycle listeners.
 
-### Using the Fetch Driver
+## Explicit clients and scopes
 
-To set up the fetch driver, import `BaseRequest` and `FetchDriver` from '@blueprint-ts/core/requests' and initialize
-the driver as shown:
+Pass a client to the inherited constructor (`new SaveNameRequest(otherClient)`) or call `request.setClient(otherClient)` before sending. A subclass with its own constructor can accept a client and pass it to `super(client)`. Rebinding during a send throws. Use separate clients for different APIs or isolated tests.
 
-```typescript
-import { BaseRequest, FetchDriver } from '@blueprint-ts/core/requests'
+`createRequestScope()` forks the current default client's configuration and listeners, then makes the fresh client the default. The scope owns independent concurrency accounting and cancellation. Call `dispose()` in teardown to abort pending requests without `detached: true` and verify registered mock transports. Default scopes must close in reverse order. `createRequestScope({ client, makeDefault: false })` leaves the default unchanged for independent concurrent clients.
 
-BaseRequest.setRequestDriver(new FetchDriver())
-```
+Configure credentials and dynamic headers through the transport driver:
 
-### Enabling Credential Support
-
-If your requests need to include credentials (e.g., cookies for cross-origin requests), enable credential support as
-follows:
-
-```typescript
-BaseRequest.setRequestDriver(new FetchDriver({
+```ts
+const client = new RequestClient({
+  baseUrl: 'https://api.example.test',
+  driver: new FetchDriver({
     corsWithCredentials: true,
-}))
+    headers: { 'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN') }
+  }),
+  loaderFactory: new VueRequestLoaderFactory()
+})
+BaseRequest.setDefaultClient(client)
 ```
 
-### Adding Global Headers
-
-To include headers such as a CSRF token with every request, define them globally:
-
-```typescript
-BaseRequest.setRequestDriver(new FetchDriver({
-    headers: {
-        'X-XSRF-TOKEN': "<token>",
-    },
-}))
-```
-
-Sometimes you want to refetch the header when the request is sent. You may specify a callback for this:
-
-```typescript
-BaseRequest.setRequestDriver(new FetchDriver({
-    headers: {
-        'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN')
-    },
-}))
-```
-
-### Specifying a Base URL
-
-In case your backend lives on a separate domain, you may specify a default base url, which is prepended to every request url:
-
-```typescript
-BaseRequest.setDefaultBaseUrl('https://example.com')
-```
-
-## Driver Scope
-
-Blueprint supports three driver scopes:
-
-- global via `BaseRequest.setRequestDriver(...)`
-- per-request-class via `getRequestDriver()`
-- per-request-instance via `request.setRequestDriver(...)`
-
-Use the global driver for your normal application transport. Use the instance-level setter in tests or one-off cases
-where only a single request object should use a different driver.
-
-## Example: Expense Index Request
-
-The following example demonstrates how to define a GET request to the `/api/v1/expenses` endpoint:
-
-```typescript
-import { BaseRequest, RequestMethodEnum, JsonResponse } from '@blueprint-ts/core/requests'
-
-export interface GenericResponseErrorInterface {
-    message: string
-}
-
-export interface ExpenseIndexRequestParams {
-    filter?: {
-        search_text?: string
-    };
-}
-
-export interface ExpenseResource {
-    id: string;
-    // other data fields
-}
-
-export interface ExpenseIndexRequestResponseBody {
-    data: ExpenseResource[]
-}
-
-export class ExpenseIndexRequest extends BaseRequest<
-        boolean, // Generic RequestLoaderLoadingType
-        GenericResponseErrorInterface, // Generic ResponseErrorBody
-        ExpenseIndexRequestResponseBody, // Generic ResponseBodyInterface
-        JsonResponse<ExpenseIndexRequestResponseBody>, // Generic ResponseClass
-        undefined, // Generic RequestBodyInterface
-        ExpenseIndexRequestParams // RequestParamsInterface
-> {
-    public method(): RequestMethodEnum {
-        return RequestMethodEnum.GET
-    }
-
-    public url(): string {
-        return '/api/v1/expenses'
-    }
-}
-```
-
-### Explanation
-
-- **HTTP Method**: Uses `GET` to retrieve data from the `/api/v1/expenses` endpoint.
-- **Error Handling**: On failure (4XX/5XX status codes), the response will conform to `GenericResponseErrorInterface`.
-- **Success Response**: A successful response is expected to follow the `ExpenseIndexRequestResponseBody` interface.
-- **Response Format**: The response is of type JSON, as indicated by `JsonResponse`.
-- **Request Body**: Since this is a GET request, the body is `undefined`.
-- **Query Parameters**: Accepts query parameters that match the `ExpenseIndexRequestParams` interface.
-
-### Sending the Request
-
-Once the request is defined, you can send it using the following code:
-
-```typescript
-const request = new ExpenseIndexRequest()
-
-// The response type and body are inferred automatically.
-const response: JsonResponse<ExpenseIndexRequestResponseBody> = await request.send()
-
-const body = response.getBody() // Type: ExpenseIndexRequestResponseBody
-```
-
-## Example: Create Expense Request (POST)
-
-This example demonstrates a POST request that sends a JSON body by overriding `getRequestBodyFactory()`:
-
-```typescript
-import {
-    BaseRequest,
-    RequestMethodEnum,
-    JsonResponse,
-    JsonBodyFactory
-} from '@blueprint-ts/core/requests'
-
-export interface CreateExpensePayload {
-    title: string
-    amount: number
-}
-
-export interface CreateExpenseResponseBody {
-    id: string
-}
-
-export class CreateExpenseRequest extends BaseRequest<
-        boolean,
-        GenericResponseErrorInterface,
-        CreateExpenseResponseBody,
-        JsonResponse<CreateExpenseResponseBody>,
-        CreateExpensePayload
-> {
-    public method(): RequestMethodEnum {
-        return RequestMethodEnum.POST
-    }
-
-    public url(): string {
-        return '/api/v1/expenses'
-    }
-
-    public getResponse(): JsonResponse<CreateExpenseResponseBody> {
-        return new JsonResponse<CreateExpenseResponseBody>()
-    }
-
-    public override getRequestBodyFactory() {
-        return new JsonBodyFactory<CreateExpensePayload>()
-    }
-}
-```
-
-### Explanation
-
-- **HTTP Method**: Uses `POST` to create a new expense.
-- **Error Handling**: On failure (4XX/5XX status codes), the response will conform to `GenericResponseErrorInterface`.
-- **Success Response**: A successful response is expected to follow the `CreateExpenseResponseBody` interface.
-- **Response Format**: The response is of type JSON, as indicated by `JsonResponse`.
-- **Request Body**: Uses `JsonBodyFactory` to send JSON with `Content-Type: application/json`.
-
-### Sending the Request
-
-```typescript
-const request = new CreateExpenseRequest()
-
-const response = await request.setBody({
-    title: 'Office supplies',
-    amount: 42
-}).send()
-
-const body = response.getBody() // Type: CreateExpenseResponseBody
-```
-
-Note: If you use Laravel or an API that wraps payloads under a `data` key, consider using `JsonBaseRequest` from the Laravel integration.
-
-For request mocking, unordered matching, predicate helpers, and response builders, see [Testing](/services/requests/testing).
+See [drivers](./drivers), [events](./events), [testing](./testing), and the [Laravel integration](/laravel/requests).

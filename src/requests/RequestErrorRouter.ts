@@ -1,3 +1,4 @@
+import { PreconditionRequiredException } from './exceptions/PreconditionRequiredException'
 import { BadRequestException } from './exceptions/BadRequestException'
 import { MethodNotAllowedException } from './exceptions/MethodNotAllowedException'
 import { RequestTimeoutException } from './exceptions/RequestTimeoutException'
@@ -29,6 +30,7 @@ type RequestExceptionConstructor =
   | typeof RequestTimeoutException
   | typeof ConflictException
   | typeof GoneException
+  | typeof PreconditionRequiredException
   | typeof PreconditionFailedException
   | typeof PayloadTooLargeException
   | typeof UnsupportedMediaTypeException

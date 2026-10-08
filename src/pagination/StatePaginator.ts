@@ -81,6 +81,6 @@ export class StatePaginator<ResourceInterface> extends BasePaginator<ResourceInt
     }
 
     this.viewDriver.setTotal(dto.getTotal())
-    this.initialized = true
+    this.viewDriver.setInitialized(true)
   }
 }

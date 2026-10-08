@@ -16,6 +16,7 @@ interface FetchDriverConfig {
   method: RequestMethodEnum
   headers: HeadersContract
   credentials?: FetchDriverCredentialConfigEnum | undefined
+  keepalive?: boolean | undefined
   signal?: AbortSignal | undefined
   body?: BodyContent | URLSearchParams | undefined
 }
@@ -44,6 +45,7 @@ export class FetchDriver implements RequestDriverContract {
 
       // Set headers from the request
       ...headers,
+      ...requestConfig?.headers,
 
       // Set Content-Type header
       ...body?.getHeaders()
@@ -74,6 +76,7 @@ export class FetchDriver implements RequestDriverContract {
       method: method,
       headers: headers,
       credentials: this.getCorsWithCredentials(config.corsWithCredentials),
+      keepalive: config.keepalive ?? false,
       signal: config.abortSignal ?? undefined,
       body: [RequestMethodEnum.GET, RequestMethodEnum.HEAD].includes(method) ? undefined : body?.getContent()
     }

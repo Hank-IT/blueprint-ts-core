@@ -14,6 +14,12 @@ When you call `send()`, `BaseRequest` uses the request body factory to build a `
 
 If you call `setBody(...)` without providing a body factory, the body is not sent.
 
+## Body snapshots
+
+Each send snapshots supported values before preparation listeners and serialization. Plain objects, arrays, dates, regular expressions, maps, sets, buffers, typed-array views, `URL`, and `URLSearchParams` are copied. `FormData` entries are copied, preserving duplicate names and files; immutable `Blob` and `File` values retain their identity.
+
+Custom class instances and functions retain their identity, including when nested in a plain object. Their factories and `toJSON()` methods can use private fields and native methods. Changes to those retained objects are visible during asynchronous preparation; supply separate instances when an operation needs isolated values.
+
 ## JSON Bodies
 
 Use `JsonBodyFactory` to send JSON and set `Content-Type: application/json`:
@@ -21,22 +27,28 @@ Use `JsonBodyFactory` to send JSON and set `Content-Type: application/json`:
 ```typescript
 import { BaseRequest, JsonBodyFactory, RequestMethodEnum } from '@blueprint-ts/core/requests'
 
-class CreateExpenseRequest extends BaseRequest<boolean, GenericResponseErrorInterface, ExpenseResource, JsonResponse<ExpenseResource>, CreateExpensePayload> {
-    public method(): RequestMethodEnum {
-        return RequestMethodEnum.POST
-    }
+class CreateExpenseRequest extends BaseRequest<
+  boolean,
+  GenericResponseErrorInterface,
+  ExpenseResource,
+  JsonResponse<ExpenseResource>,
+  CreateExpensePayload
+> {
+  public method(): RequestMethodEnum {
+    return RequestMethodEnum.POST
+  }
 
-    public url(): string {
-        return '/api/v1/expenses'
-    }
+  public url(): string {
+    return '/api/v1/expenses'
+  }
 
-    public getResponse(): JsonResponse<ExpenseResource> {
-        return new JsonResponse<ExpenseResource>()
-    }
+  public getResponse(): JsonResponse<ExpenseResource> {
+    return new JsonResponse<ExpenseResource>()
+  }
 
-    public override getRequestBodyFactory() {
-        return new JsonBodyFactory<CreateExpensePayload>()
-    }
+  public override getRequestBodyFactory() {
+    return new JsonBodyFactory<CreateExpensePayload>()
+  }
 }
 ```
 
@@ -87,3 +99,21 @@ the consuming application needs upload progress events.
 ## Custom Body Factories
 
 You can implement your own body factory by returning a `BodyContract` with custom headers and serialization logic.
+
+## Request context
+
+Use `setContext()` to provide typed application metadata to request lifecycle listeners. Context is independent of the body set by `setBody()` and is not serialized automatically.
+
+For example, an application can define a request ID key and map it to a header in its client:
+
+<<< ../../examples/v6.ts#startup
+
+Attach that context to a request:
+
+<<< ../../examples/v6.ts#context
+
+`getContext()` returns the request's context. `setBody()` replaces the body without changing it. To clear context on a reused request, call `setContext(new RequestContext())`.
+
+Context values support plain objects, arrays, and primitives, and are copied and frozen. Create typed keys with `createRequestContextKey<T>()`, then read values through `context.get(key)` or `context.require(key)`.
+
+Each send captures its context and snapshots its body before preparation. Plain objects, arrays, buffers, and views are copied; immutable Blob/File values preserve bytes, and FormData preserves entries, duplicate keys, and files.

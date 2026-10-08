@@ -1,3 +1,4 @@
+import { UnsupportedTransportOptionException } from '../../exceptions/UnsupportedTransportOptionException'
 import { ResponseException } from '../../exceptions/ResponseException'
 import { RequestMethodEnum } from '../../RequestMethod.enum'
 import { type HeadersContract, type HeaderValue } from '../../contracts/HeadersContract'
@@ -22,9 +23,12 @@ export class XMLHttpRequestDriver implements RequestDriverContract {
       ...(requestConfig ?? {})
     }
 
+    if (mergedConfig.keepalive === true) throw new UnsupportedTransportOptionException('keepalive', 'XMLHttpRequest')
+
     const mergedHeaders: HeadersContract = {
       ...this.config?.headers,
       ...headers,
+      ...requestConfig?.headers,
       ...body?.getHeaders()
     }
 
@@ -104,7 +108,12 @@ export class XMLHttpRequestDriver implements RequestDriverContract {
       }
 
       abortSignal?.addEventListener('abort', handleAbortSignal, { once: true })
-      request.send(requestBody)
+      try {
+        request.send(requestBody)
+      } catch (error) {
+        cleanup()
+        reject(error)
+      }
     })
   }
 

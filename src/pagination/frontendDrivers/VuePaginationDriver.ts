@@ -2,6 +2,7 @@ import { computed, ref, type Ref, type ComputedRef } from 'vue'
 import { type ViewDriverContract } from '../contracts/ViewDriverContract'
 
 export class VuePaginationDriver<ResourceInterface> implements ViewDriverContract<ResourceInterface[]> {
+  protected initializedRef: Ref<boolean> = ref(false)
   protected dataRef: Ref<ResourceInterface[]>
   protected currentPageRef: Ref<number>
   protected pageSizeRef: Ref<number>
@@ -17,6 +18,14 @@ export class VuePaginationDriver<ResourceInterface> implements ViewDriverContrac
 
     this.totalPagesComputed = computed(() => Math.ceil(this.totalRef.value / this.pageSizeRef.value))
     this.pagesComputed = computed(() => Array.from({ length: this.totalPagesComputed.value }, (_, i) => i + 1))
+  }
+
+  public isInitialized(): boolean {
+    return this.initializedRef.value
+  }
+
+  public setInitialized(value: boolean): void {
+    this.initializedRef.value = value
   }
 
   public setData(data: ResourceInterface[]): void {

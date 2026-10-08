@@ -31,17 +31,17 @@ request.send()
 
 ## Abort Signals
 
-When using `REPLACE` or `REPLACE_LATEST`, the request creates and assigns its own `AbortController` for the concurrency key. This replaces any previously configured abort signal on that request instance. If you need to preserve a custom abort signal, apply it per request without using replace modes.
+Each send has its own abort controller. Caller cancellation, replacement, and client disposal are forwarded to that controller. The caller’s signal remains effective in every concurrency mode. Aborting one send does not overwrite another send’s signal.
 
 ## Keys
 
-The `key` lets you coordinate concurrency across multiple request instances. If you omit it, the request instance ID is used.
+The `key` coordinates requests captured by the same `RequestClient`. Separate clients have independent keys, replacement controllers, and loading counts. If you omit it, the request instance ID is used.
 
 Use a shared key when multiple instances represent the same logical request stream (for example, a search box that creates new request objects).
 
 ## Stale Responses
 
-When `LATEST` or `REPLACE_LATEST` is used, stale responses raise a `StaleResponseException` so the caller can ignore them safely.
+When `LATEST` or `REPLACE_LATEST` is used, stale responses raise a `StaleResponseException` so the caller can ignore them safely. Blueprint checks freshness after asynchronous preparation, transport, response processing, and decoding. A replacement that arrives while a processing listener is waiting prevents the older result from reaching the caller.
 
 If you don't want to handle it explicitly, catch and ignore it:
 

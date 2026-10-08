@@ -65,7 +65,7 @@ protected getPositionsProduct(value: ProductResource | null): number | null {
 }
 ```
 
-The same rule applies to nested `PropertyAwareObject` fields. `buildPayload()` reconstructs the raw nested object and still uses composite getters for nested properties where defined.
+The same rule applies to nested `PropertyAwareObject` fields. `buildPayload()` reconstructs the raw nested object and applies composite getters for nested properties where defined.
 
 ### Appended Fields
 
@@ -99,3 +99,7 @@ Omitting is similar to ignoring, but it is dynamic at runtime. If a getter retur
 
 - `Date` values are treated as scalars and preserved.
 - `File`/`Blob` values are treated as scalars and preserved. Send the payload using a multipart request.
+
+## Using a payload
+
+`buildPayload()` returns the transformed data for the caller to use. Pass it to `request.setBody()`, serialize it for browser storage, or send it to another application service. To mark a successful save as the new baseline, see [Saving Form Values](./saving).

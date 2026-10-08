@@ -7,35 +7,31 @@ Note: For Vue apps, the library provides `VueRequestLoader` and `VueRequestLoade
 
 ## Registering a Loader Factory
 
-Use `BaseRequest.setRequestLoaderFactory()` to register a factory that implements `RequestLoaderFactoryContract` and
+Use `BaseRequest.getDefaultClient().setLoaderFactory()` to register a factory that implements `RequestLoaderFactoryContract` and
 returns a `RequestLoaderContract`:
 
 ```typescript
-import {
-    BaseRequest,
-    type RequestLoaderContract,
-    type RequestLoaderFactoryContract
-} from '@blueprint-ts/core/requests'
+import { BaseRequest, type RequestLoaderContract, type RequestLoaderFactoryContract } from '@blueprint-ts/core/requests'
 
 class BooleanLoader implements RequestLoaderContract<boolean> {
-    private loading = false
+  private loading = false
 
-    public isLoading(): boolean {
-        return this.loading
-    }
+  public isLoading(): boolean {
+    return this.loading
+  }
 
-    public setLoading(value: boolean): void {
-        this.loading = value
-    }
+  public setLoading(value: boolean): void {
+    this.loading = value
+  }
 }
 
 class BooleanLoaderFactory implements RequestLoaderFactoryContract<boolean> {
-    public make(): RequestLoaderContract<boolean> {
-        return new BooleanLoader()
-    }
+  public make(): RequestLoaderContract<boolean> {
+    return new BooleanLoader()
+  }
 }
 
-BaseRequest.setRequestLoaderFactory(new BooleanLoaderFactory())
+BaseRequest.getDefaultClient().setLoaderFactory(new BooleanLoaderFactory())
 ```
 
 ## Reading Loading State

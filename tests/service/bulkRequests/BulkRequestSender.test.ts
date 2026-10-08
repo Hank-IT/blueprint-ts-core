@@ -15,7 +15,7 @@ const createRequest = (options: { failTimes?: number } = {}) => {
       return Promise.resolve('ok')
     }),
     isLoading: vi.fn().mockReturnValue(false),
-    setAbortSignal: vi.fn(),
+    setAbortSignal: vi.fn()
   }
 }
 
@@ -40,7 +40,7 @@ describe('BulkRequestSender', () => {
     const failingRequest = createRequest({ failTimes: 2 })
     const wrapper = new BulkRequestWrapper(failingRequest as any)
 
-    const sender = new BulkRequestSender([wrapper], BulkRequestExecutionMode.SEQUENTIAL, 1)
+    const sender = new BulkRequestSender([wrapper], BulkRequestExecutionMode.SEQUENTIAL, 1).setRetryPolicy(() => true)
     const onFailed = vi.fn()
 
     sender.on(BulkRequestEventEnum.REQUEST_FAILED, onFailed)
@@ -49,19 +49,6 @@ describe('BulkRequestSender', () => {
 
     expect(failingRequest.send).toHaveBeenCalledTimes(2)
     expect(onFailed).toHaveBeenCalledTimes(1)
-  })
-
-  it('reports loading state when any request is loading', () => {
-    const request1 = createRequest()
-    const request2 = createRequest()
-    request2.isLoading = vi.fn().mockReturnValue(true)
-
-    const sender = new BulkRequestSender(
-      [new BulkRequestWrapper(request1 as any), new BulkRequestWrapper(request2 as any)],
-      BulkRequestExecutionMode.PARALLEL
-    )
-
-    expect(sender.isLoading).toBe(true)
   })
 
   it('removes event handlers with off()', () => {

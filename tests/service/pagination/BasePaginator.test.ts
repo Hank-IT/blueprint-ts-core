@@ -4,6 +4,15 @@ import { PaginationDataDto } from '../../../src/pagination/dtos/PaginationDataDt
 import type { BaseViewDriverContract } from '../../../src/pagination/contracts/BaseViewDriverContract'
 
 class TestViewDriver implements BaseViewDriverContract<number[]> {
+  private initialized = false
+
+  isInitialized(): boolean {
+    return this.initialized
+  }
+  setInitialized(value: boolean): void {
+    this.initialized = value
+  }
+
   private data: number[] = []
   private total = 0
 

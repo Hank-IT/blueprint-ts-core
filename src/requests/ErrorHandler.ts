@@ -2,7 +2,8 @@ import { PageExpiredException } from './exceptions/PageExpiredException'
 import { NotFoundException } from './exceptions/NotFoundException'
 import { UnauthorizedException } from './exceptions/UnauthorizedException'
 import { ValidationException } from './exceptions/ValidationException'
-import { ResponseException } from './exceptions/ResponseException'
+import { ResponseBodyException } from './exceptions/ResponseBodyException'
+import { PreconditionRequiredException } from './exceptions/PreconditionRequiredException'
 import { NoResponseReceivedException } from './exceptions/NoResponseReceivedException'
 import { ServerErrorException } from './exceptions/ServerErrorException'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
@@ -23,24 +24,12 @@ import { GatewayTimeoutException } from './exceptions/GatewayTimeoutException'
 import { BadRequestException } from './exceptions/BadRequestException'
 import { InvalidJsonException } from './exceptions/InvalidJsonException'
 
-export type ErrorHandlerCallback = ((response: ResponseHandlerContract) => boolean | void) | undefined
-
 export class ErrorHandler<ResponseErrorBody> {
   protected body: ResponseErrorBody | undefined = undefined
-  protected static handler: ErrorHandlerCallback = undefined
 
   public constructor(protected response: ResponseHandlerContract) {}
 
   public async handle() {
-    // Check if there is a global error handler set
-    if (ErrorHandler.handler !== undefined) {
-      // If handler returns false, we don't process the error further
-      if (ErrorHandler.handler(this.response) === false) {
-        console.debug('Skipping further error handling due to global handler returning false.')
-        return
-      }
-    }
-
     try {
       this.body = await this.response.json<ResponseErrorBody>()
     } catch (error) {
@@ -52,10 +41,6 @@ export class ErrorHandler<ResponseErrorBody> {
     }
 
     this.handleResponseError(this.response, this.body)
-  }
-
-  public static registerHandler(callback: ErrorHandlerCallback) {
-    ErrorHandler.handler = callback
   }
 
   protected handleResponseError(response: ResponseHandlerContract, body: ResponseErrorBody) {
@@ -115,6 +100,10 @@ export class ErrorHandler<ResponseErrorBody> {
       throw new LockedException<ResponseErrorBody>(response, body)
     }
 
+    if (response.getStatusCode() === 428) {
+      throw new PreconditionRequiredException<ResponseErrorBody>(response, body)
+    }
+
     if (response.getStatusCode() === 429) {
       throw new TooManyRequestsException<ResponseErrorBody>(response, body)
     }
@@ -139,6 +128,6 @@ export class ErrorHandler<ResponseErrorBody> {
       throw new GatewayTimeoutException<ResponseErrorBody>(response, body)
     }
 
-    throw new ResponseException(response)
+    throw new ResponseBodyException(response, body)
   }
 }

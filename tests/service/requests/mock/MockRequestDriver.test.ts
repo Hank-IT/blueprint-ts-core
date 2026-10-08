@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   BaseRequest,
-  ErrorHandler,
   JsonBodyFactory,
   JsonResponse,
   MockRequestAssertionError,
@@ -18,22 +17,22 @@ import {
   matchHeaders,
   matchQuery,
   resetMockRequestDriver,
-  validationError,
+  validationError
 } from '../../../../src/requests'
 import { ValidationException } from '../../../../src/requests/exceptions/ValidationException'
 import type { BodyContent, BodyContract } from '../../../../src/requests/contracts/BodyContract'
 
 const createBody = (content: BodyContent, headers: Record<string, string> = { 'Content-Type': 'application/json' }): BodyContract => ({
   getHeaders: () => headers,
-  getContent: () => content,
+  getContent: () => content
 })
 
 class MockJsonRequest extends BaseRequest<
   boolean,
-  { message: string, errors?: Record<string, string[]> },
+  { message: string; errors?: Record<string, string[]> },
   { ok: boolean },
   JsonResponse<{ ok: boolean }>,
-  { name: string, role?: string },
+  { name: string; role?: string },
   { filter?: string }
 > {
   public method(): RequestMethodEnum {
@@ -53,7 +52,7 @@ class MockJsonRequest extends BaseRequest<
   }
 
   public getRequestBodyFactory() {
-    return new JsonBodyFactory<{ name: string, role?: string }>()
+    return new JsonBodyFactory<{ name: string; role?: string }>()
   }
 }
 
@@ -73,34 +72,28 @@ class MockTextRequest extends BaseRequest<boolean, { message: string }, string, 
 
 describe('MockRequestDriver', () => {
   beforeEach(() => {
-    BaseRequest.setDefaultBaseUrl('https://example.com')
-    ErrorHandler.registerHandler(undefined)
-    resetMockRequestDriver()
+    BaseRequest.getDefaultClient().setBaseUrl('https://example.com')
   })
 
   it('keeps ordered exact matching as the default', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock?filter=active',
-        headers: {
-          Accept: 'application/json',
-          'X-Request': 'blueprint',
-          'X-Optional': 'present',
-          'Content-Type': 'application/json',
-        },
-        body: {
-          name: 'Ada',
-        },
-        response: jsonResponse(200, { ok: true }),
-      })
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.POST,
+      url: 'https://example.com/mock?filter=active',
+      headers: {
+        Accept: 'application/json',
+        'X-Request': 'blueprint',
+        'X-Optional': 'present',
+        'Content-Type': 'application/json'
+      },
+      body: {
+        name: 'Ada'
+      },
+      response: jsonResponse(200, { ok: true })
+    })
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
-    const response = await new MockJsonRequest()
-      .setParams({ filter: 'active' })
-      .setBody({ name: 'Ada' })
-      .send()
+    const response = await new MockJsonRequest().setParams({ filter: 'active' }).setBody({ name: 'Ada' }).send()
 
     expect(response.getBody()).toEqual({ ok: true })
     expect(getMockRequestJsonBody(driver.getHistory()[0])).toEqual({ name: 'Ada' })
@@ -114,21 +107,19 @@ describe('MockRequestDriver', () => {
         url: 'https://example.com/text',
         response: {
           status: 200,
-          body: 'first',
-        },
+          body: 'first'
+        }
       })
       .expect({
         method: RequestMethodEnum.POST,
         url: 'https://example.com/mock',
         body: { name: 'Ada' },
-        response: jsonResponse(200, { ok: true }),
+        response: jsonResponse(200, { ok: true })
       })
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
-    const jsonResponseResult = await new MockJsonRequest()
-      .setBody({ name: 'Ada' })
-      .send()
+    const jsonResponseResult = await new MockJsonRequest().setBody({ name: 'Ada' }).send()
 
     const textResponseResult = await new MockTextRequest().send({ resolveBody: false })
 
@@ -144,20 +135,19 @@ describe('MockRequestDriver', () => {
     driver
       .expectAny({
         method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock',
+        url: 'https://example.com/mock'
       })
-      .withHeaders(matchHeaders({
-        Accept: 'application/json',
-        'X-Request': 'blueprint',
-      }))
+      .withHeaders(
+        matchHeaders({
+          Accept: 'application/json',
+          'X-Request': 'blueprint'
+        })
+      )
       .withQuery(matchQuery({ filter: 'active' }))
       .withBody(expectJsonBody({ name: 'Ada' }, { partial: true }))
       .respond(jsonResponse(200, { ok: true }))
 
-    const response = await new MockJsonRequest()
-      .setParams({ filter: 'active' })
-      .setBody({ name: 'Ada', role: 'admin' })
-      .send()
+    const response = await new MockJsonRequest().setParams({ filter: 'active' }).setBody({ name: 'Ada', role: 'admin' }).send()
 
     const history = driver.getHistory()
 
@@ -168,21 +158,20 @@ describe('MockRequestDriver', () => {
   })
 
   it('matches exact headers regardless of object key order', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock',
-        headers: {
-          Accept: 'application/json',
-          'X-Optional': 'present',
-          'X-Request': 'blueprint',
-          'Content-Type': 'application/json',
-        },
-        body: {
-          name: 'Ada',
-        },
-        response: jsonResponse(200, { ok: true }),
-      })
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.POST,
+      url: 'https://example.com/mock',
+      headers: {
+        Accept: 'application/json',
+        'X-Optional': 'present',
+        'X-Request': 'blueprint',
+        'Content-Type': 'application/json'
+      },
+      body: {
+        name: 'Ada'
+      },
+      response: jsonResponse(200, { ok: true })
+    })
 
     await expect(
       driver.send(
@@ -192,7 +181,7 @@ describe('MockRequestDriver', () => {
           'Content-Type': 'application/json',
           'X-Request': 'blueprint',
           Accept: 'application/json',
-          'X-Optional': 'present',
+          'X-Optional': 'present'
         },
         createBody('{"name":"Ada"}')
       )
@@ -202,23 +191,20 @@ describe('MockRequestDriver', () => {
   })
 
   it('matches exact query parameters regardless of object key order', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.GET,
-        url: 'https://example.com/text',
-        query: {
-          second: '2',
-          first: '1',
-        },
-        response: {
-          status: 200,
-          body: 'done',
-        },
-      })
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.GET,
+      url: 'https://example.com/text',
+      query: {
+        second: '2',
+        first: '1'
+      },
+      response: {
+        status: 200,
+        body: 'done'
+      }
+    })
 
-    await expect(
-      driver.send('https://example.com/text?first=1&second=2', RequestMethodEnum.GET, {})
-    ).resolves.toBeDefined()
+    await expect(driver.send('https://example.com/text?first=1&second=2', RequestMethodEnum.GET, {})).resolves.toBeDefined()
 
     expect(() => driver.assertExpectationsMet()).not.toThrow()
   })
@@ -229,59 +215,49 @@ describe('MockRequestDriver', () => {
     driver
       .expectAny({
         method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock',
+        url: 'https://example.com/mock'
       })
       .respond(emptyResponse())
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
-    await new MockJsonRequest()
-      .setBody({ name: 'Ada', role: 'admin' })
-      .send({ resolveBody: false })
+    await new MockJsonRequest().setBody({ name: 'Ada', role: 'admin' }).send({ resolveBody: false })
 
     expect(getMockRequestJsonBody(driver.getHistory()[0])).toEqual({ name: 'Ada', role: 'admin' })
     expect(() => driver.assertExpectationsMet()).not.toThrow()
   })
 
   it('exposes text body helpers for history assertions', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.PUT,
-        url: 'https://example.com/text-body',
-        body: 'plain-text',
-        response: emptyResponse(),
-      })
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.PUT,
+      url: 'https://example.com/text-body',
+      body: 'plain-text',
+      response: emptyResponse()
+    })
 
-    await driver.send(
-      'https://example.com/text-body',
-      RequestMethodEnum.PUT,
-      {},
-      createBody('plain-text', { 'Content-Type': 'text/plain' })
-    )
+    await driver.send('https://example.com/text-body', RequestMethodEnum.PUT, {}, createBody('plain-text', { 'Content-Type': 'text/plain' }))
 
     expect(getMockRequestTextBody(driver.getHistory()[0])).toBe('plain-text')
   })
 
   it('uses convenience response builders for error responses', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock',
-        body: {
-          name: '',
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.POST,
+      url: 'https://example.com/mock',
+      body: {
+        name: ''
+      },
+      response: validationError(
+        {
+          name: ['Required']
         },
-        response: validationError({
-          name: ['Required'],
-        }, 'Validation failed'),
-      })
+        'Validation failed'
+      )
+    })
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
-    await expect(
-      new MockJsonRequest()
-        .setBody({ name: '' })
-        .send()
-    ).rejects.toBeInstanceOf(ValidationException)
+    await expect(new MockJsonRequest().setBody({ name: '' }).send()).rejects.toBeInstanceOf(ValidationException)
 
     expect(() => driver.assertExpectationsMet()).not.toThrow()
   })
@@ -294,8 +270,8 @@ describe('MockRequestDriver', () => {
       url: 'https://example.com/text',
       response: {
         status: 200,
-        body: 'done',
-      },
+        body: 'done'
+      }
     })
 
     const response = await new MockTextRequest().send({ resolveBody: false })
@@ -310,9 +286,9 @@ describe('MockRequestDriver', () => {
     expect(() => driver.assertExpectationsMet()).not.toThrow()
   })
 
-  it('reinstalls the remembered mock globally when reset is called after driver drift', async () => {
+  it('keeps the client mock transport when its production driver changes', async () => {
     const driver = installMockRequestDriver()
-    BaseRequest.setRequestDriver(new MockRequestDriver())
+    BaseRequest.getDefaultClient().setDriver(new MockRequestDriver())
 
     const resetDriver = resetMockRequestDriver()
 
@@ -321,8 +297,8 @@ describe('MockRequestDriver', () => {
       url: 'https://example.com/text',
       response: {
         status: 200,
-        body: 'restored',
-      },
+        body: 'restored'
+      }
     })
 
     const response = await new MockTextRequest().send({ resolveBody: false })
@@ -333,44 +309,35 @@ describe('MockRequestDriver', () => {
   })
 
   it('renders detailed JSON mismatch output', async () => {
-    const driver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/mock',
-        body: {
-          user: {
-            name: 'Ada',
-          },
-        },
-        response: jsonResponse(200, { ok: true }),
-      })
+    const driver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.POST,
+      url: 'https://example.com/mock',
+      body: {
+        user: {
+          name: 'Ada'
+        }
+      },
+      response: jsonResponse(200, { ok: true })
+    })
 
-    await expect(
-      driver.send(
-        'https://example.com/mock',
-        RequestMethodEnum.POST,
-        {},
-        createBody('{"user":{"name":"Grace"}}')
-      )
-    ).rejects.toThrowError(
+    await expect(driver.send('https://example.com/mock', RequestMethodEnum.POST, {}, createBody('{"user":{"name":"Grace"}}'))).rejects.toThrowError(
       expect.objectContaining({
-        message: expect.stringContaining('Differing JSON paths: user.name'),
+        message: expect.stringContaining('Differing JSON paths: user.name')
       })
     )
   })
 
   it('still supports binary and form data bodies', async () => {
     const chunk = new Uint8Array([1, 2, 3, 4])
-    const binaryDriver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.PUT,
-        url: 'https://example.com/binary',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-        },
-        body: chunk,
-        response: emptyResponse(),
-      })
+    const binaryDriver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.PUT,
+      url: 'https://example.com/binary',
+      headers: {
+        'Content-Type': 'application/octet-stream'
+      },
+      body: chunk,
+      response: emptyResponse()
+    })
 
     await binaryDriver.send(
       'https://example.com/binary',
@@ -381,20 +348,19 @@ describe('MockRequestDriver', () => {
 
     expect(binaryDriver.getHistory()[0]?.body).toEqual({
       kind: 'binary',
-      bytes: [1, 2, 3, 4],
+      bytes: [1, 2, 3, 4]
     })
 
     const formData = new FormData()
     formData.append('name', 'Ada')
     formData.append('avatar', new File(['binary'], 'avatar.txt', { type: 'text/plain' }))
 
-    const formDriver = new MockRequestDriver()
-      .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/form',
-        body: formData,
-        response: emptyResponse(),
-      })
+    const formDriver = new MockRequestDriver().expect({
+      method: RequestMethodEnum.POST,
+      url: 'https://example.com/form',
+      body: formData,
+      response: emptyResponse()
+    })
 
     await formDriver.send('https://example.com/form', RequestMethodEnum.POST, {}, createBody(formData, {}))
 
@@ -405,8 +371,8 @@ describe('MockRequestDriver', () => {
           key: 'name',
           value: {
             kind: 'text',
-            value: 'Ada',
-          },
+            value: 'Ada'
+          }
         },
         {
           key: 'avatar',
@@ -414,10 +380,10 @@ describe('MockRequestDriver', () => {
             kind: 'file',
             name: 'avatar.txt',
             mimeType: 'text/plain',
-            bytes: [98, 105, 110, 97, 114, 121],
-          },
-        },
-      ],
+            bytes: [98, 105, 110, 97, 114, 121]
+          }
+        }
+      ]
     })
   })
 

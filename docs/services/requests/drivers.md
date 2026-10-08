@@ -3,12 +3,14 @@
 Requests are executed by a request driver. The library includes a `FetchDriver`, an `XMLHttpRequestDriver`, and also
 lets you provide your own by implementing `RequestDriverContract`.
 
+Configure a [shared client](./getting-started) before constructing requests. The examples below update that client. Shared processing belongs in [client events](./events), above Fetch, XHR, and mock transports.
+
 ## Fetch Driver
 
 ```typescript
 import { BaseRequest, FetchDriver } from '@blueprint-ts/core/requests'
 
-BaseRequest.setRequestDriver(new FetchDriver())
+BaseRequest.getDefaultClient().setDriver(new FetchDriver())
 ```
 
 The `FetchDriver` supports:
@@ -24,7 +26,7 @@ Use `XMLHttpRequestDriver` when you need upload progress events for file uploads
 ```typescript
 import { BaseRequest, XMLHttpRequestDriver } from '@blueprint-ts/core/requests'
 
-BaseRequest.setRequestDriver(new XMLHttpRequestDriver())
+BaseRequest.getDefaultClient().setDriver(new XMLHttpRequestDriver())
 ```
 
 It supports the same configuration as `FetchDriver` and additionally forwards upload progress through
@@ -41,63 +43,54 @@ That includes:
 If a specific request class should always use a different driver, define it inside the request:
 
 ```typescript
-import {
-    BaseRequest,
-    FetchDriver,
-    JsonResponse,
-    RequestMethodEnum,
-    XMLHttpRequestDriver
-} from '@blueprint-ts/core/requests'
+import { BaseRequest, FetchDriver, JsonResponse, RequestMethodEnum, XMLHttpRequestDriver } from '@blueprint-ts/core/requests'
 
-BaseRequest.setRequestDriver(new FetchDriver())
+BaseRequest.getDefaultClient().setDriver(new FetchDriver())
 
 class UploadAvatarRequest extends BaseRequest<boolean, { message: string }, { ok: true }, JsonResponse<{ ok: true }>> {
-    public method(): RequestMethodEnum {
-        return RequestMethodEnum.POST
-    }
+  public method(): RequestMethodEnum {
+    return RequestMethodEnum.POST
+  }
 
-    public url(): string {
-        return '/api/v1/avatar'
-    }
+  public url(): string {
+    return '/api/v1/avatar'
+  }
 
-    public getResponse(): JsonResponse<{ ok: true }> {
-        return new JsonResponse<{ ok: true }>()
-    }
+  public getResponse(): JsonResponse<{ ok: true }> {
+    return new JsonResponse<{ ok: true }>()
+  }
 
-    protected override getRequestDriver() {
-        return new XMLHttpRequestDriver({
-            corsWithCredentials: true,
-            headers: {
-                'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN')
-            }
-        })
-    }
+  protected override getRequestDriver() {
+    return new XMLHttpRequestDriver({
+      corsWithCredentials: true,
+      headers: {
+        'X-XSRF-TOKEN': () => getCookie('XSRF-TOKEN')
+      }
+    })
+  }
 }
 ```
 
-This keeps the driver choice encapsulated inside the request class while still allowing the application to keep a
-global default driver for everything else.
+The upload request uses its selected driver; other requests use their client's driver.
 
-Important: request-defined drivers do not inherit configuration from the globally registered driver instance. If your
+Request-defined drivers do not inherit configuration from the client's driver instance. If your
 upload request needs credential support or shared headers, configure them on the `XMLHttpRequestDriver` you return from
 `getRequestDriver()`.
 
 ## Per-Instance Driver
 
-If only one request instance should use a different driver, set it directly on the request instead of changing the
-global driver:
+Use `setRequestDriver()` to select the transport for one request instance:
 
 ```typescript
 import { FetchDriver, MockRequestDriver } from '@blueprint-ts/core/requests'
 
-BaseRequest.setRequestDriver(new FetchDriver())
+BaseRequest.getDefaultClient().setDriver(new FetchDriver())
 
 const request = new UserShowRequest()
 request.setRequestDriver(new MockRequestDriver())
 ```
 
-This overrides the driver only for that request object. It is especially useful in tests where you want to mock one
-request instance without subclassing the request just to override `getRequestDriver()`.
+Use this override in tests that need a mock transport for one request instance.
 
 ## Custom Driver
 
@@ -112,23 +105,23 @@ import { type BodyContract } from '@blueprint-ts/core/requests'
 import { type DriverConfigContract } from '@blueprint-ts/core/requests'
 
 class CustomDriver implements RequestDriverContract {
-    public async send(
-        url: URL | string,
-        method: RequestMethodEnum,
-        headers: HeadersContract,
-        body?: BodyContract,
-        requestConfig?: DriverConfigContract
-    ): Promise<ResponseHandlerContract> {
-        // Implement your transport here and return a ResponseHandlerContract.
-        throw new Error('Not implemented')
-    }
+  public async send(
+    url: URL | string,
+    method: RequestMethodEnum,
+    headers: HeadersContract,
+    body?: BodyContract,
+    requestConfig?: DriverConfigContract
+  ): Promise<ResponseHandlerContract> {
+    // Implement your transport here and return a ResponseHandlerContract.
+    throw new Error('Not implemented')
+  }
 }
 ```
 
 Register your driver during app boot:
 
 ```typescript
-BaseRequest.setRequestDriver(new CustomDriver())
+BaseRequest.getDefaultClient().setDriver(new CustomDriver())
 ```
 
 ## Testing
@@ -141,3 +134,9 @@ For request mocking and assertions in tests, see [Testing](/services/requests/te
 - capture-then-assert flows through request history
 - convenience response builders such as `jsonResponse(...)` and `validationError(...)`
 - global install/reset helpers and per-instance driver overrides
+
+## Driver precedence and test isolation
+
+A per-instance `setRequestDriver()` override has highest priority. Next comes the client's mock transport override, then a request-defined driver, then the client's driver. A mock installed with `installMockRequestDriver()` therefore covers request-defined upload drivers while retaining their request lifecycle and body serialization. Explicit per-instance drivers need their own verification.
+
+Transport defaults belong to the driver; client headers and configuration apply across transports. A custom driver's `send()` receives an absolute URL string and must honor the `URL | string` contract.

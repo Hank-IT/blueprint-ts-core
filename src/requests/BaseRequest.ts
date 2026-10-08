@@ -1,23 +1,25 @@
+import { RequestContext } from './types/RequestContext'
+import { snapshotRequestBody } from './snapshotRequestBody'
+import { RequestClient } from './RequestClient'
+import { RequestSubscriptions } from './RequestSubscriptions'
+import type { RequestEventHandler, RequestSnapshot, RequestPreparation } from './types/RequestLifecycle'
 import qs from 'qs'
 import { ErrorHandler } from './ErrorHandler'
 import { RequestEvents } from './RequestEvents.enum'
 import { RequestMethodEnum } from './RequestMethod.enum'
 import { BaseResponse } from './responses/BaseResponse'
 import { ResponseException } from './exceptions/ResponseException'
-import { StaleResponseException } from './exceptions/StaleResponseException'
 import { type DriverConfigContract } from './contracts/DriverConfigContract'
 import { type BodyFactoryContract } from './contracts/BodyFactoryContract'
 import { type BodyContract } from './contracts/BodyContract'
 import { type RequestLoaderContract } from './contracts/RequestLoaderContract'
 import { type RequestDriverContract } from './contracts/RequestDriverContract'
-import { type RequestLoaderFactoryContract } from './contracts/RequestLoaderFactoryContract'
-import { type BaseRequestContract, type EventHandlerCallback, type SendRequestOptions } from './contracts/BaseRequestContract'
+import { type BaseRequestContract, type SendRequestOptions } from './contracts/BaseRequestContract'
 import { type HeadersContract } from './contracts/HeadersContract'
 import { type ResponseHandlerContract } from './drivers/contracts/ResponseHandlerContract'
 import { type ResponseContract } from './contracts/ResponseContract'
 import { type RequestConcurrencyOptions } from './types/RequestConcurrencyOptions'
 import { type RequestUploadProgress } from './types/RequestUploadProgress'
-import { RequestConcurrencyMode } from './RequestConcurrencyMode.enum'
 import { mergeDeep } from '../support/helpers'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -29,45 +31,44 @@ export abstract class BaseRequest<
   RequestBodyInterface = undefined,
   RequestParamsInterface extends object = object
 > implements BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface> {
+  private context = new RequestContext()
+  private readonly subscriptions = new RequestSubscriptions()
+  private activeSends = 0
+  private loadingSends = 0
+  private explicitLoader = false
+
   protected requestId: string = uuidv4()
-  protected params: RequestParamsInterface | undefined = undefined
-  protected requestBody: RequestBodyInterface | undefined = undefined
-  protected requestLoader: RequestLoaderContract<RequestLoaderLoadingType> | undefined = undefined
-  protected abortSignal: AbortSignal | undefined = undefined
-  protected concurrencyOptions: RequestConcurrencyOptions | undefined = undefined
+  protected params: RequestParamsInterface | undefined
+  protected requestBody: RequestBodyInterface | undefined
+  protected requestLoader: RequestLoaderContract<RequestLoaderLoadingType> | undefined
+  protected abortSignal: AbortSignal | undefined
+  protected concurrencyOptions: RequestConcurrencyOptions | undefined
   protected additionalHeaders: HeadersContract = {}
-  protected instanceRequestDriver: RequestDriverContract | undefined = undefined
-  /* @ts-expect-error Ignore generics */
-  protected events: { [key in RequestEvents]?: EventHandlerCallback[] } = {}
+  protected instanceRequestDriver: RequestDriverContract | undefined
 
-  protected static defaultBaseUrl: string
-
-  protected static requestDriver: RequestDriverContract
-  protected static requestLoaderFactory: RequestLoaderFactoryContract<unknown>
-  protected static concurrencySequenceByKey: Map<string, number> = new Map()
-  protected static concurrencyAbortControllerByKey: Map<string, AbortController> = new Map()
-  protected static concurrencyInFlightByKey: Map<string, number> = new Map()
-
-  public constructor() {
-    if (BaseRequest.requestLoaderFactory !== undefined) {
-      this.requestLoader = BaseRequest.requestLoaderFactory.make() as RequestLoaderContract<RequestLoaderLoadingType>
-    }
+  public constructor(private client: RequestClient = RequestClient.getDefault()) {
+    this.requestLoader = client.getLoaderFactory()?.make() as RequestLoaderContract<RequestLoaderLoadingType> | undefined
   }
 
-  public static setRequestDriver(driver: RequestDriverContract) {
-    this.requestDriver = driver
+  public static setDefaultClient(client: RequestClient): void {
+    RequestClient.setDefault(client)
   }
-
-  public static setRequestLoaderFactory<T>(factory: RequestLoaderFactoryContract<T>): void {
-    this.requestLoaderFactory = factory
+  public static getDefaultClient(): RequestClient {
+    return RequestClient.getDefault()
   }
-
-  public static setDefaultBaseUrl(url: string) {
-    this.defaultBaseUrl = url
+  public getClient(): RequestClient {
+    return this.client
+  }
+  public setClient(client: RequestClient): this {
+    if (this.activeSends > 0) throw new Error('Cannot change the client while a request is running.')
+    this.client = client
+    if (!this.explicitLoader) this.requestLoader = client.getLoaderFactory()?.make() as RequestLoaderContract<RequestLoaderLoadingType> | undefined
+    return this
   }
 
   public setRequestLoader(loader: RequestLoaderContract<RequestLoaderLoadingType>): this {
     this.requestLoader = loader
+    this.explicitLoader = true
 
     return this
   }
@@ -114,6 +115,15 @@ export abstract class BaseRequest<
     return this
   }
 
+  public setContext(context: RequestContext): this {
+    this.context = context
+    return this
+  }
+
+  public getContext(): RequestContext {
+    return this.context
+  }
+
   public setHeaders(headers: HeadersContract): this {
     this.additionalHeaders = {
       ...this.additionalHeaders,
@@ -135,118 +145,121 @@ export abstract class BaseRequest<
     const hasParams = this.params !== undefined && Object.keys(this.params).length > 0
     const url = hasParams ? this.url() + '?' + qs.stringify(this.params) : this.url()
 
-    return new URL(url, this.baseUrl() ?? BaseRequest.defaultBaseUrl)
+    return new URL(url, this.baseUrl() ?? this.client.getBaseUrl())
   }
 
-  public on<T>(event: RequestEvents, handler: EventHandlerCallback<T>): this {
-    if (!this.events[event]) {
-      this.events[event] = []
-    }
-
-    this.events[event].push(handler)
-
-    return this
-  }
-
-  protected dispatch<T>(event: RequestEvents, value: T) {
-    if (!this.events[event]) {
-      return
-    }
-
-    this.events[event].forEach((handler: EventHandlerCallback<T>) => handler(value))
+  public on<Event extends RequestEvents>(event: Event, handler: RequestEventHandler<Event>): () => void {
+    return this.subscriptions.on(event, handler)
   }
 
   public async send(): Promise<ResponseClass>
-  public async send(options: { resolveBody?: true }): Promise<ResponseClass>
-  public async send(options: { resolveBody: false }): Promise<ResponseHandlerContract>
+  public async send(options: SendRequestOptions & { resolveBody?: true }): Promise<ResponseClass>
+  public async send(options: SendRequestOptions & { resolveBody: false }): Promise<ResponseHandlerContract>
   public async send(options: SendRequestOptions = {}): Promise<ResponseClass | ResponseHandlerContract> {
     const responseSkeleton = this.getResponse()
-    const acceptHeader = responseSkeleton.getAcceptHeader()
-    const concurrencyMode: RequestConcurrencyMode = this.concurrencyOptions?.mode ?? RequestConcurrencyMode.ALLOW
-    const concurrencyKey = this.concurrencyOptions?.key ?? this.requestId
-    const useReplace = concurrencyMode === RequestConcurrencyMode.REPLACE || concurrencyMode === RequestConcurrencyMode.REPLACE_LATEST
-    const useLatest = concurrencyMode === RequestConcurrencyMode.LATEST || concurrencyMode === RequestConcurrencyMode.REPLACE_LATEST
-    const sequence = this.bumpConcurrencySequence(concurrencyKey)
-    this.incrementConcurrencyInFlight(concurrencyKey)
-
-    if (useReplace) {
-      const previousController = BaseRequest.concurrencyAbortControllerByKey.get(concurrencyKey)
-
-      if (previousController) {
-        previousController.abort()
+    const snapshot: RequestSnapshot = Object.freeze({
+      requestId: this.requestId,
+      sendId: uuidv4(),
+      url: this.buildUrl().toString(),
+      method: this.method(),
+      context: this.context
+    })
+    const shared = this.client.snapshotSubscriptions()
+    const local = this.subscriptions.snapshot()
+    const subscriptions = shared.snapshot()
+    subscriptions.append(local)
+    const report = this.client.reportListenerError.bind(this.client)
+    const operation = this.client.begin(snapshot, this.concurrencyOptions, options.detached === true)
+    const { controller, assertCurrent } = operation
+    this.activeSends++
+    let externalSignal: AbortSignal | undefined
+    const abort = () => controller.abort()
+    const loading = options.loading !== false
+    let loadingStarted = false
+    let skipSharedFailure = options.globalErrorHandling === false
+    try {
+      const preparation: RequestPreparation = {
+        body: snapshotRequestBody(this.requestBody),
+        headers: { ...this.client.getHeaders(), Accept: responseSkeleton.getAcceptHeader(), ...this.requestHeaders(), ...this.additionalHeaders }
       }
-
-      const controller = new AbortController()
-      BaseRequest.concurrencyAbortControllerByKey.set(concurrencyKey, controller)
-      this.setAbortSignal(controller.signal)
-    }
-
-    this.dispatch<boolean>(RequestEvents.LOADING, true)
-    this.requestLoader?.setLoading(true)
-
-    const requestBody = this.requestBody === undefined ? undefined : this.getRequestBodyFactory()?.make(this.requestBody)
-    const requestConfig = this.buildRequestConfig(requestBody, concurrencyKey, sequence, useLatest)
-
-    const responseHandler = await this.resolveRequestDriver()
-      .send(
-        this.buildUrl(),
-        this.method(),
-        {
-          Accept: acceptHeader,
-          ...this.requestHeaders(),
-          ...this.additionalHeaders
-        },
-        requestBody,
-        requestConfig
+      const config = { ...this.client.getConfig(), ...this.getConfig() }
+      externalSignal = options.detached ? undefined : config.abortSignal
+      if (externalSignal?.aborted) abort()
+      externalSignal?.addEventListener('abort', abort, { once: true })
+      if (options.keepalive !== undefined) config.keepalive = options.keepalive
+      config.abortSignal = options.detached ? undefined : controller.signal
+      assertCurrent()
+      if (loading) {
+        this.loadingSends++
+        loadingStarted = true
+        this.requestLoader?.setLoading(true)
+        subscriptions.notify(RequestEvents.LOADING, [true, snapshot], snapshot, report)
+      }
+      const preparing = subscriptions.process(RequestEvents.BEFORE_SERIALIZE, [snapshot, preparation], assertCurrent)
+      if (preparing !== undefined) await preparing
+      assertCurrent()
+      const body = preparation.body === undefined ? undefined : this.getRequestBodyFactory()?.make(preparation.body as RequestBodyInterface)
+      const requestConfig = this.buildRequestConfig(
+        body,
+        config,
+        operation.isCurrent,
+        (error) => report(error, RequestEvents.UPLOAD_PROGRESS, snapshot),
+        (progress) => {
+          subscriptions.notify(RequestEvents.UPLOAD_PROGRESS, [progress, snapshot], snapshot, report)
+        }
       )
-      .then(async (driverResponseHandler: ResponseHandlerContract) => {
-        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
-          throw new StaleResponseException()
+      let transportError: ResponseException | undefined
+      let response: ResponseHandlerContract
+      try {
+        response = await this.resolveRequestDriver().send(snapshot.url, snapshot.method, preparation.headers, body, requestConfig)
+      } catch (error) {
+        if (!(error instanceof ResponseException)) throw error
+        transportError = error
+        response = error.getResponse()
+      }
+      assertCurrent()
+      if (transportError !== undefined || (response.getStatusCode() ?? 0) >= 400) {
+        const errorSubscriptions = options.globalErrorHandling === false ? local : subscriptions
+        const processing = errorSubscriptions.process(RequestEvents.RESPONSE_ERROR, [snapshot, response], assertCurrent)
+        const proceed = processing === undefined ? undefined : await processing
+        assertCurrent()
+        if (proceed === false) {
+          skipSharedFailure = true
+          throw transportError ?? new ResponseException(response)
         }
-
-        if ((driverResponseHandler.getStatusCode() ?? 0) >= 400) {
-          const handler = new ErrorHandler<ResponseErrorBody>(driverResponseHandler)
-          await handler.handle()
+        await new ErrorHandler<ResponseErrorBody>(response).handle()
+        throw transportError ?? new ResponseException(response)
+      }
+      const received = subscriptions.process(RequestEvents.RECEIVED, [snapshot, response], assertCurrent)
+      if (received !== undefined) await received
+      assertCurrent()
+      if (options.resolveBody === false) return response
+      const decoded = await responseSkeleton.setResponse(response)
+      assertCurrent()
+      const processed = subscriptions.process(RequestEvents.DECODED, [snapshot, decoded, response], assertCurrent)
+      if (processed !== undefined) await processed
+      assertCurrent()
+      return responseSkeleton
+    } catch (error) {
+      assertCurrent()
+      if (!skipSharedFailure) shared.notify(RequestEvents.FAILED, [snapshot, error], snapshot, report)
+      local.notify(RequestEvents.FAILED, [snapshot, error], snapshot, report)
+      throw error
+    } finally {
+      try {
+        if (loadingStarted && --this.loadingSends === 0) {
+          try {
+            this.requestLoader?.setLoading(false)
+          } finally {
+            subscriptions.notify(RequestEvents.LOADING, [false, snapshot], snapshot, report)
+          }
         }
-
-        return driverResponseHandler
-      })
-      .catch(async (error) => {
-        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
-          throw new StaleResponseException('Stale response ignored', error)
-        }
-
-        if (error instanceof StaleResponseException) {
-          throw error
-        }
-
-        if (error instanceof ResponseException) {
-          const handler = new ErrorHandler<ResponseErrorBody>(error.getResponse())
-          await handler.handle()
-        }
-
-        console.error('@blueprint-ts/core: Unknown error received.', error)
-
-        throw error
-      })
-      .finally(() => {
-        const isStale = useLatest && !this.isLatestSequence(concurrencyKey, sequence)
-
-        if (!isStale) {
-          this.dispatch<boolean>(RequestEvents.LOADING, false)
-          this.requestLoader?.setLoading(false)
-        }
-
-        this.decrementConcurrencyInFlight(concurrencyKey)
-      })
-
-    if (options.resolveBody === false) {
-      return responseHandler
+      } finally {
+        externalSignal?.removeEventListener('abort', abort)
+        operation.finish()
+        this.activeSends--
+      }
     }
-
-    await responseSkeleton.setResponse(responseHandler)
-
-    return responseSkeleton
   }
 
   public isLoading(): RequestLoaderLoadingType {
@@ -269,80 +282,42 @@ export abstract class BaseRequest<
     return this
   }
 
-  protected bumpConcurrencySequence(key: string): number {
-    const next = (BaseRequest.concurrencySequenceByKey.get(key) ?? 0) + 1
-    BaseRequest.concurrencySequenceByKey.set(key, next)
-
-    return next
-  }
-
-  protected isLatestSequence(key: string, sequence: number): boolean {
-    return (BaseRequest.concurrencySequenceByKey.get(key) ?? 0) === sequence
-  }
-
-  protected incrementConcurrencyInFlight(key: string): void {
-    const next = (BaseRequest.concurrencyInFlightByKey.get(key) ?? 0) + 1
-    BaseRequest.concurrencyInFlightByKey.set(key, next)
-  }
-
-  protected decrementConcurrencyInFlight(key: string): void {
-    const current = BaseRequest.concurrencyInFlightByKey.get(key)
-
-    if (current === undefined) {
-      return
-    }
-
-    const next = current - 1
-
-    if (next <= 0) {
-      BaseRequest.concurrencyInFlightByKey.delete(key)
-      BaseRequest.concurrencySequenceByKey.delete(key)
-      BaseRequest.concurrencyAbortControllerByKey.delete(key)
-      return
-    }
-
-    BaseRequest.concurrencyInFlightByKey.set(key, next)
-  }
-
   protected baseUrl(): undefined {
     return undefined
   }
 
-  protected buildRequestConfig(
+  private buildRequestConfig(
     requestBody: BodyContract | undefined,
-    concurrencyKey: string,
-    sequence: number,
-    useLatest: boolean
+    config: DriverConfigContract,
+    isCurrent: () => boolean,
+    report: (error: unknown) => void,
+    notify: (progress: RequestUploadProgress) => void
   ): DriverConfigContract {
-    const config = this.getConfig() ?? {}
+    if (requestBody === undefined) return config
     const onUploadProgress = config.onUploadProgress
-
-    if (requestBody === undefined) {
-      return config
-    }
-
     return {
       ...config,
-      onUploadProgress: (progress: RequestUploadProgress) => {
-        onUploadProgress?.(progress)
-
-        if (useLatest && !this.isLatestSequence(concurrencyKey, sequence)) {
-          return
+      onUploadProgress: (progress) => {
+        if (!isCurrent()) return
+        // Driver configuration callbacks are notifications too.
+        if (onUploadProgress !== undefined) {
+          try {
+            void Promise.resolve(onUploadProgress(progress)).catch(report)
+          } catch (error) {
+            report(error)
+          }
         }
-
-        this.dispatch<RequestUploadProgress>(RequestEvents.UPLOAD_PROGRESS, progress)
+        notify(progress)
       }
     }
   }
 
   protected getConfig(): DriverConfigContract | undefined {
-    return {
-      abortSignal: this.abortSignal
-    }
+    return this.abortSignal === undefined ? undefined : { abortSignal: this.abortSignal }
   }
 
   protected resolveRequestDriver(): RequestDriverContract {
-    return this.instanceRequestDriver ?? this.getRequestDriver() ?? BaseRequest.requestDriver
+    return this.instanceRequestDriver ?? this.client.getTransportOverride() ?? this.getRequestDriver() ?? this.client.getDriver()
   }
 
   protected getRequestDriver(): RequestDriverContract | undefined {

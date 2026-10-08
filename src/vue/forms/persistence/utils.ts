@@ -23,7 +23,7 @@ function normalizePropertyAwareEqualityValue<T>(value: T): T {
     const normalized: Record<string, unknown> = {}
 
     for (const [key, child] of Object.entries(value)) {
-      if (key === PROPERTY_AWARE_OBJECT_MARKER) {
+      if (key === PROPERTY_AWARE_OBJECT_MARKER || child === undefined) {
         continue
       }
 
@@ -41,6 +41,7 @@ function normalizePropertyAwareEqualityValue<T>(value: T): T {
     const normalized: Record<string, unknown> = {}
 
     for (const [key, child] of Object.entries(value)) {
+      if (child === undefined) continue
       normalized[key] = normalizePropertyAwareEqualityValue(child)
     }
 

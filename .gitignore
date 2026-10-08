@@ -32,3 +32,5 @@ coverage
 docs/.vitepress/cache
 
 vitest-results.json
+vitest-junit.xml
+vitest-junit.xml.tmp

@@ -6,10 +6,10 @@ Use `PageAwarePaginator` for classic page/size pagination. It requires a view dr
 import { PageAwarePaginator, ArrayDriver, type ViewDriverFactoryContract } from '@blueprint-ts/core/pagination'
 
 class MyViewDriverFactory implements ViewDriverFactoryContract {
-    public make<ResourceInterface>(pageNumber: number, pageSize: number) {
-        // Return a ViewDriverContract<ResourceInterface[]> implementation.
-        throw new Error('Not implemented')
-    }
+  public make<ResourceInterface>(pageNumber: number, pageSize: number) {
+    // Return a ViewDriverContract<ResourceInterface[]> implementation.
+    throw new Error('Not implemented')
+  }
 }
 
 PageAwarePaginator.setViewDriverFactory(new MyViewDriverFactory())
@@ -45,7 +45,10 @@ the new page in one call.
 If the underlying request uses concurrency mode `LATEST` or `REPLACE_LATEST`, stale responses are ignored. In that case,
 `load()` resolves with the current page data without updating the view, so older responses cannot overwrite newer ones.
 
-
 ## Updating Rows
 
 `updateRows` is available on all paginators. See [Updating Rows](./updating-rows) for details.
+
+## First load and view drivers
+
+Every successful load calls the view driver’s `setData()`, `setTotal()`, and `setInitialized(true)`, including an empty first page and unchanged data. Custom view drivers implement the initialization methods from `BaseViewDriverContract`. Supply a `viewDriverFactory` in the paginator constructor options to customize the view driver; use `PageAwarePaginator.setViewDriverFactory()` to configure the default before constructing paginators.

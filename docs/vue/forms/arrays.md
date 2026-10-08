@@ -2,9 +2,9 @@
 
 ## PropertyAwareArray
 
-Use `PropertyAwareArray` for arrays with per-item `v-model`, errors, and dirty state when your array contains objects.
+Use `PropertyAwareArray` for arrays with per-item `v-model`, errors, and dirty state.
 
-`PropertyAwareArray` item wrappers are stable across repeated `properties` access and reorder operations. This makes them safe to use with sortable or draggable UIs.
+Object item wrappers are stable across repeated `properties` access and reorder operations. This makes them safe to use with sortable or draggable UIs.
 
 ```ts
 import { BaseForm, PropertyAwareArray } from '@blueprint-ts/core/vue/forms'
@@ -48,9 +48,15 @@ Example component usage:
 
 Nested error keys like `positions.0.value` map into `position.value.errors`.
 
+### Primitive values
+
+For primitive items, such as `new PropertyAwareArray(['first', 'second'])`, each item exposes a `value` field. Bind to `form.properties.tags[index].value.model.value` and read its `errors`, `dirty`, and `touched` properties. Error keys such as `tags.0` refer to the item itself.
+
+Primitive bindings follow the array position, so duplicate values can be edited independently. Use object items when bindings need to follow an item through reordering.
+
 ### Reordering
 
-`PropertyAwareArray` is designed to work with reorderable editors. When the same underlying item is moved to another index, its property-aware wrapper identity is preserved.
+`PropertyAwareArray` is designed to work with reorderable editors. When the same underlying object item is moved to another index, its property-aware wrapper identity is preserved.
 
 This is especially useful with libraries like `vuedraggable`, where unstable wrapper identity can cause reordering to snap instead of animate smoothly.
 

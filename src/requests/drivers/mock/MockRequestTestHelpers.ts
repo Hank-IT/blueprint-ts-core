@@ -1,5 +1,5 @@
 import { isEqual } from 'lodash-es'
-import { BaseRequest } from '../../BaseRequest'
+import { RequestClient, createRequestScope } from '../../RequestClient'
 import { type DriverConfigContract } from '../../contracts/DriverConfigContract'
 import { type ResolvedHeadersContract } from '../../contracts/HeadersContract'
 import {
@@ -103,31 +103,48 @@ export function emptyResponse(status = 204, headers?: ResolvedHeadersContract): 
   }
 }
 
-let installedMockRequestDriver: MockRequestDriver | undefined
-
-export function installMockRequestDriver(options: InstallMockRequestDriverOptions = {}): MockRequestDriver {
+export function installMockRequestDriver(options: InstallMockRequestDriverOptions = {}, client = RequestClient.getDefault()): MockRequestDriver {
   const driver = new MockRequestDriver(
     options.config,
     options.expectations ?? [],
-    options.matchMode !== undefined ? { matchMode: options.matchMode } : {}
+    options.matchMode === undefined ? {} : { matchMode: options.matchMode }
   )
-
-  BaseRequest.setRequestDriver(driver)
-  installedMockRequestDriver = driver
-
+  client.setTransportOverride(driver)
+  client.onDispose(() => driver.assertExpectationsMet())
   return driver
 }
 
-export function resetMockRequestDriver(): MockRequestDriver {
-  if (!installedMockRequestDriver) {
-    return installMockRequestDriver()
-  }
-
-  installedMockRequestDriver.reset()
-  BaseRequest.setRequestDriver(installedMockRequestDriver)
-
-  return installedMockRequestDriver
+export function resetMockRequestDriver(client = RequestClient.getDefault()): MockRequestDriver {
+  const driver = client.getTransportOverride()
+  if (!(driver instanceof MockRequestDriver)) return installMockRequestDriver({}, client)
+  driver.reset()
+  return driver
 }
 
 export { getMockRequestJsonBody, getMockRequestTextBody, getMockRequestQuery }
 export type { MockNormalizedRequestBody, MockRequestHistoryEntry }
+
+/** A response controlled by the test, without replacing the request or serialization path. */
+export function deferredResponse(): {
+  respond: () => Promise<MockResponseDefinition>
+  resolve: (response: MockResponseDefinition) => void
+  reject: (error: unknown) => void
+} {
+  let resolve!: (response: MockResponseDefinition) => void
+  let reject!: (error: unknown) => void
+  const response = new Promise<MockResponseDefinition>((accept, decline) => {
+    resolve = accept
+    reject = decline
+  })
+  return { respond: () => response, resolve, reject }
+}
+
+export function createMockRequestScope(options: InstallMockRequestDriverOptions & { client?: RequestClient; makeDefault?: boolean } = {}): {
+  client: RequestClient
+  driver: MockRequestDriver
+  dispose(): void
+} {
+  const scope = createRequestScope(options)
+  const driver = installMockRequestDriver(options, scope.client)
+  return { client: scope.client, driver, dispose: scope.dispose }
+}

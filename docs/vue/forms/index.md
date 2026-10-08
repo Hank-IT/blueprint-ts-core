@@ -1,10 +1,12 @@
 # BaseForm
 
 `BaseForm` is a TypeScript base class for Vue forms that gives you:
+
 - Type-safe form state
 - Dirty and touched tracking
 - Validation and error mapping
 - Payload transformations
+- Saved-value baselines
 - Optional persistence
 - Array helpers and file handling
 - Stable property-aware array item wrappers for reorderable UIs
@@ -39,10 +41,7 @@ export class MyForm extends BaseForm<RequestPayload, FormState> {
   protected override errorMap: { [serverKey: string]: string | string[] } = {}
 
   public constructor() {
-    super(
-      { name: '', email: '' },
-      { persist: true, persistKey: 'contact-form', persistSuffix: 'optional-suffix' }
-    )
+    super({ name: '', email: '' }, { persist: true, persistKey: 'contact-form', persistSuffix: 'optional-suffix' })
   }
 
   protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
@@ -65,7 +64,7 @@ export class MyForm extends BaseForm<RequestPayload, FormState> {
 }
 ```
 
-Component usage:
+Component usage with a [Vue request loader](../requests/loading) and `SaveContactRequest` typed with `Ref<boolean>` for its loading state:
 
 ```vue
 <template>
@@ -86,20 +85,27 @@ Component usage:
       </div>
     </div>
 
-    <button type="submit" :disabled="!form.isDirty()">Submit</button>
+    <button type="submit" :disabled="isLoading || !form.isDirty()">Submit</button>
     <button type="button" @click="form.reset()">Reset</button>
   </form>
 </template>
 
 <script setup lang="ts">
 import { MyForm } from './MyForm'
+import { SaveContactRequest } from './SaveContactRequest'
 
 const form = new MyForm()
+const request = new SaveContactRequest()
+const isLoading = request.isLoading()
 
 async function submitForm() {
-  if (!form.validate(true)) return
-  const payload = form.buildPayload()
-  await api.submitForm(payload)
+  if (isLoading.value || !form.validate(true)) return
+  await request.setBody(form.buildPayload()).send()
+  form.acceptSavedValues()
 }
 </script>
 ```
+
+## Saving values
+
+Call `acceptSavedValues()` after saving to accept the current values as the baseline, or pass complete saved values to replace the editable state as well. The caller owns storage, pending state, and errors. See [Saving Form Values](./saving) for HTTP and local-storage examples.

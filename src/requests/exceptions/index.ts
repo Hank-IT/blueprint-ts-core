@@ -1,3 +1,4 @@
+import { PreconditionRequiredException } from './PreconditionRequiredException'
 import { ValidationException } from './ValidationException'
 import { NotFoundException } from './NotFoundException'
 import { NoResponseReceivedException } from './NoResponseReceivedException'
@@ -24,6 +25,7 @@ import { ResponseException } from './ResponseException'
 import { ResponseBodyException } from './ResponseBodyException'
 
 export {
+  PreconditionRequiredException,
   ValidationException,
   NotFoundException,
   NoResponseReceivedException,
@@ -49,3 +51,5 @@ export {
   PayloadTooLargeException,
   UnsupportedMediaTypeException
 }
+
+export { UnsupportedTransportOptionException } from './UnsupportedTransportOptionException'

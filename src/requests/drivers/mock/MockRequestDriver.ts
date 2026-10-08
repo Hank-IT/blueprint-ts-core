@@ -39,13 +39,17 @@ export type MockRequestHeadersMatcher = HeadersContract | ResolvedHeadersContrac
 export type MockRequestQueryMatcher = MockRequestQuery | MockRequestPredicate<MockRequestQuery>
 export type MockRequestBodyMatcher = MockRequestBody | MockRequestPredicate<MockRequestBodyMatchContext>
 
+export type MockResponseResolver =
+  | MockResponseDefinition
+  | ((request: MockRequestBodyMatchContext) => MockResponseDefinition | Promise<MockResponseDefinition>)
+
 export interface MockRequestExpectation {
   method: MockRequestMethodMatcher
   url: MockRequestUrlMatcher
   headers?: MockRequestHeadersMatcher
   query?: MockRequestQueryMatcher
   body?: MockRequestBodyMatcher
-  response: MockResponseDefinition
+  response: MockResponseResolver
 }
 
 export interface MockRequestExpectationCriteria {
@@ -72,6 +76,7 @@ export interface MockRequestHistoryEntry {
   url: string
   headers: ResolvedHeadersContract
   body?: MockNormalizedRequestBody
+  config?: DriverConfigContract
 }
 
 interface NormalizedMockRequest {
@@ -243,7 +248,7 @@ export class MockRequestExpectationBuilder {
     return this
   }
 
-  public respond(response: MockResponseDefinition): MockRequestDriver {
+  public respond(response: MockResponseResolver): MockRequestDriver {
     this.driver.expect({
       ...this.criteria,
       response
@@ -256,6 +261,9 @@ export class MockRequestExpectationBuilder {
 export class MockRequestDriver implements RequestDriverContract {
   protected expectations: MockRequestExpectation[] = []
   protected history: MockRequestHistoryEntry[] = []
+  private failures: MockRequestAssertionError[] = []
+  private stubs: Array<{ expectation: MockRequestExpectation; maxCalls: number; calls: number }> = []
+  private selection: Promise<void> = Promise.resolve()
   protected matchMode: MockRequestMatchMode
 
   public constructor(
@@ -291,9 +299,19 @@ export class MockRequestDriver implements RequestDriverContract {
     return new MockRequestExpectationBuilder(this, criteria)
   }
 
+  /** Optional, narrowly matched traffic. Required traffic belongs in expect/expectAny. */
+  public allow(criteria: MockRequestExpectationCriteria, response: MockResponseResolver, options: { maxCalls: number }): this {
+    if (!Number.isSafeInteger(options.maxCalls) || options.maxCalls < 1) throw new RangeError('maxCalls must be a positive finite integer.')
+    this.stubs.push({ expectation: { ...criteria, response }, maxCalls: options.maxCalls, calls: 0 })
+    return this
+  }
+
   public reset(): this {
+    this.assertExpectationsMet()
     this.expectations = []
     this.history = []
+    this.failures = []
+    this.stubs = []
 
     return this
   }
@@ -307,6 +325,9 @@ export class MockRequestDriver implements RequestDriverContract {
   }
 
   public assertExpectationsMet(): void {
+    if (this.failures.length > 0) {
+      throw new MockRequestAssertionError(this.failures.map((failure) => failure.message).join('\n\n'))
+    }
     if (this.expectations.length === 0) {
       return
     }
@@ -333,23 +354,68 @@ export class MockRequestDriver implements RequestDriverContract {
     body?: BodyContract,
     requestConfig?: DriverConfigContract
   ): Promise<ResponseHandlerContract> {
-    if (requestConfig?.abortSignal?.aborted) {
-      throw new DOMException('The operation was aborted.', 'AbortError')
+    const config = { ...this.config, ...requestConfig }
+    const actualRequest = await this.normalizeActualRequest(url, method, { ...headers, ...requestConfig?.headers }, body)
+    this.history.push({ ...this.toHistoryEntry(actualRequest), config })
+    if (config.abortSignal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError')
+
+    // Reserve an expectation before resolving its (possibly deferred) response.
+    let release!: () => void
+    const previous = this.selection
+    this.selection = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await previous
+    let expectation: MockRequestExpectation
+    try {
+      try {
+        const selected = await this.selectExpectation(actualRequest)
+        this.expectations.splice(selected.index, 1)
+        expectation = selected.expectation
+      } catch (error) {
+        let allowed: MockRequestExpectation | undefined
+        for (const stub of this.stubs) {
+          if (stub.calls < stub.maxCalls && !(await this.matchExpectation(stub.expectation, actualRequest))) {
+            stub.calls++
+            allowed = stub.expectation
+            break
+          }
+        }
+        if (allowed === undefined) throw error
+        expectation = allowed
+      }
+    } catch (error) {
+      if (error instanceof MockRequestAssertionError) this.failures.push(error)
+      throw error
+    } finally {
+      release()
     }
 
-    const actualRequest = await this.normalizeActualRequest(url, method, headers, body)
-    const { index, expectation } = await this.selectExpectation(actualRequest)
-
-    this.expectations.splice(index, 1)
-    this.history.push(this.toHistoryEntry(actualRequest))
-
-    const response = new MockResponseHandler(expectation.response)
-
-    if (!response.getRawResponse().ok) {
-      throw new ResponseException(response)
-    }
-
+    const definition =
+      typeof expectation.response === 'function' ? expectation.response(this.createBodyMatchContext(actualRequest)) : expectation.response
+    const response = new MockResponseHandler(await this.awaitResponse(definition, config.abortSignal))
+    if (!response.getRawResponse().ok) throw new ResponseException(response)
     return response
+  }
+
+  private async awaitResponse(
+    definition: MockResponseDefinition | Promise<MockResponseDefinition>,
+    signal?: AbortSignal
+  ): Promise<MockResponseDefinition> {
+    return new Promise((resolve, reject) => {
+      const abort = () => {
+        signal?.removeEventListener('abort', abort)
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
+      }
+      if (signal?.aborted) {
+        abort()
+        return
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      Promise.resolve(definition)
+        .then(resolve, reject)
+        .finally(() => signal?.removeEventListener('abort', abort))
+    })
   }
 
   protected async selectExpectation(actualRequest: NormalizedMockRequest): Promise<{ index: number; expectation: MockRequestExpectation }> {

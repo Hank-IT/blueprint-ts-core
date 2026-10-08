@@ -1,3 +1,6 @@
+import type { RequestContext } from '../types/RequestContext'
+import type { RequestClient } from '../RequestClient'
+import type { RequestEventHandler } from '../types/RequestLifecycle'
 import { RequestMethodEnum } from '../RequestMethod.enum'
 import { RequestEvents } from '../RequestEvents.enum'
 import { type BodyFactoryContract } from './BodyFactoryContract'
@@ -6,9 +9,12 @@ import { type RequestConcurrencyOptions } from '../types/RequestConcurrencyOptio
 import { type ResponseHandlerContract } from '../drivers/contracts/ResponseHandlerContract'
 import { type RequestDriverContract } from './RequestDriverContract'
 
-export type EventHandlerCallback<T> = (value: T) => void
 export interface SendRequestOptions {
   resolveBody?: boolean
+  keepalive?: boolean
+  loading?: boolean
+  globalErrorHandling?: boolean
+  detached?: boolean
 }
 
 export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterface, ResponseClass, RequestParamsInterface extends object> {
@@ -24,15 +30,23 @@ export interface BaseRequestContract<RequestLoaderLoadingType, RequestBodyInterf
 
   setBody(requestBody: RequestBodyInterface | undefined): this
 
+  setContext(context: RequestContext): this
+
+  getContext(): RequestContext
+
+  setClient(client: RequestClient): this
+
+  getClient(): RequestClient
+
   requestHeaders(): HeadersContract
 
   buildUrl(): URL
 
-  on<T>(event: RequestEvents, handler: EventHandlerCallback<T>): this
+  on<Event extends RequestEvents>(event: Event, handler: RequestEventHandler<Event>): () => void
 
   send(): Promise<ResponseClass>
-  send(options: { resolveBody?: true }): Promise<ResponseClass>
-  send(options: { resolveBody: false }): Promise<ResponseHandlerContract>
+  send(options: SendRequestOptions & { resolveBody?: true }): Promise<ResponseClass>
+  send(options: SendRequestOptions & { resolveBody: false }): Promise<ResponseHandlerContract>
 
   isLoading(): RequestLoaderLoadingType
 

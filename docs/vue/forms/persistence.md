@@ -1,108 +1,41 @@
 # Persistence
 
-Persistence is disabled by default. Enable it with `persist: true` and a stable `persistKey`:
+Enable temporary draft persistence with `persist: true` and a stable `persistKey`:
 
 ```ts
-super(defaults, { persist: true, persistKey: 'profile-form' })
-```
-
-You can also pass `super(defaults, { persist: false })` when you want to make that choice explicit.
-
-Example:
-
-```ts
-protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
-  return new SessionStorageDriver(suffix)
-}
-```
-
-See the Persistence service for available drivers and custom implementations: [Persistence](/services/persistence/).
-
-Notes:
-- `persist: true` enables automatic rehydration and background persistence.
-- `persistKey` is required when persistence is enabled and is the semantic key used with the configured persistence driver.
-- `persistSuffix` is passed to `getPersistenceDriver(suffix)` for namespacing.
-- Persisted state is restored through a restore policy. By default, Blueprint restores only when the stored `original` matches your current defaults.
-- `File`/`Blob` values are not JSON-serializable and should not be used with form persistence.
-
-## Testing With In-Memory Persistence
-
-When you want to assert persisted form drafts in tests without touching browser storage, use `MemoryPersistenceDriver`:
-
-```ts
-import { BaseForm, MemoryPersistenceDriver, type PersistenceDriver } from '@blueprint-ts/core/vue/forms'
-
-export class TestForm extends BaseForm<RequestPayload, FormState> {
-  public constructor() {
-    super(defaults, { persist: true, persistKey: 'test-form' })
-  }
-
-  protected override getPersistenceDriver(suffix?: string): PersistenceDriver {
-    return new MemoryPersistenceDriver(suffix)
-  }
-}
-
-beforeEach(() => {
-  MemoryPersistenceDriver.clear()
+super(defaults, {
+  persist: true,
+  persistKey: 'profile-editor',
+  persistSuffix: profileId
 })
 ```
 
-Because the driver shares in-memory state across instances, one form instance can persist a draft and a later instance
-can restore it in the same test.
+Override `getPersistenceDriver(suffix)` to choose `SessionStorageDriver`, `LocalStorageDriver`, or a custom `PersistenceDriver`. `MemoryPersistenceDriver` supports isolated tests. A `persistKey` without `persist: true` does not enable persistence.
 
-## Default Restore Behavior
+## Draft contents
 
-The built-in `StrictPersistenceRestorePolicy` behaves like this:
-
-1. Blueprint asks the configured persistence driver for previously saved form state.
-2. If no persisted state exists, the form starts from the constructor defaults.
-3. If persisted state exists, Blueprint compares the persisted `original` value to the current constructor defaults.
-4. If those values match, Blueprint restores:
-   - the persisted form `state`
-   - the persisted `original`
-   - the persisted `dirty` flags
-   - the persisted `touched` flags
-5. If they do not match, Blueprint discards the persisted entry and starts from the constructor defaults.
-
-The comparison ignores persistence-only markers used by `PropertyAwareObject`, so property-aware structures are compared by their actual form data.
-
-## Restore Policy
-
-Override `getPersistenceRestorePolicy()` when a form needs custom restore behavior:
+Drafts are unversioned objects containing editable `state`, the `original` baseline, and `touched` flags. Dirty state is recalculated by comparing the restored values with the baseline.
 
 ```ts
-import {
-  BaseForm,
-  StrictPersistenceRestorePolicy,
-  type PersistenceRestorePolicy
-} from '@blueprint-ts/core/vue/forms'
-
-export class MyForm extends BaseForm<RequestPayload, FormState> {
-  protected override getPersistenceRestorePolicy(): PersistenceRestorePolicy<FormState> {
-    return new StrictPersistenceRestorePolicy<FormState>()
-  }
+{
+  state: { name: 'Edited' },
+  original: { name: 'Loaded' },
+  touched: { name: true }
 }
 ```
 
-The default implementation already returns `StrictPersistenceRestorePolicy`, so you only need to override this method when a form needs a custom policy.
+These drafts hold temporary editing state. They are not a format for long-term application storage.
 
-## Debug Logging
+## Restoring a draft
 
-Persistence debug logging is disabled by default. Enable it by overriding `shouldLogPersistenceDebug()`:
+Blueprint validates the structure before calling `getPersistenceRestorePolicy()`: state and baseline must be objects containing only fields declared in the constructor values, and each declared field must have a boolean touched flag. Malformed drafts are discarded.
 
-```ts
-export class MyForm extends BaseForm<RequestPayload, FormState> {
-  protected override shouldLogPersistenceDebug(): boolean {
-    return true
-  }
-}
-```
+JSON omits object fields whose values are `undefined`. Omitted values are restored as `undefined`, including nested object properties. Baseline comparison treats omitted and explicitly undefined object properties equally; `null` remains a distinct value. Include optional fields in the constructor values even when their initial value is `undefined`.
 
-When enabled, Blueprint logs:
-- when no persisted state exists
-- when persisted state is restored
-- when persisted state is discarded and why
+The default `StrictPersistenceRestorePolicy` restores only when the draft's original baseline matches the constructor values. Otherwise it discards the draft. Keep initial values stable when a create draft should survive reopening.
 
-The stable `persistKey` is the primary identifier in debug output. The form class name and suffix are included as context when available.
+Override `getPersistenceRestorePolicy()` to choose another restore rule for structurally valid drafts. Application-specific validity checks can also be implemented in a persistence driver that wraps the underlying storage driver.
 
-This is useful when debugging why a draft was not restored without enabling noisy logging for all forms.
+`acceptSavedValues()` persists the new current values and baseline. `clearPersistedDraft()` removes the stored draft without changing form values or their baseline. `reset()` restores the current baseline.
+
+Override `shouldLogPersistenceDebug()` to return true to log restore/discard decisions. Logging is disabled by default. Logs include the stable key, form name, suffix, decision reason, and available mismatch paths.

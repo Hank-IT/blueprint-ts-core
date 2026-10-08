@@ -6,12 +6,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isPersistedFormLike<FormBody extends object>(value: unknown): value is PersistedForm<FormBody> {
+export function isPersistedFormLike<FormBody extends object>(value: unknown, defaults: FormBody): value is PersistedForm<FormBody> {
   if (!isRecord(value)) {
     return false
   }
 
-  return 'state' in value && 'original' in value && 'dirty' in value
+  const state = value['state']
+  const original = value['original']
+  const touched = value['touched']
+  if (!isRecord(state) || !isRecord(original) || !isRecord(touched)) {
+    return false
+  }
+
+  const fields = Object.keys(defaults)
+  const declared = new Set(fields)
+  return (
+    fields.length === Object.keys(touched).length &&
+    fields.every((field) => Object.prototype.hasOwnProperty.call(touched, field) && typeof touched[field] === 'boolean') &&
+    Object.keys(state).every((field) => declared.has(field)) &&
+    Object.keys(original).every((field) => declared.has(field))
+  )
 }
 
 export class StrictPersistenceRestorePolicy<FormBody extends object> implements PersistenceRestorePolicy<FormBody> {
@@ -25,7 +39,7 @@ export class StrictPersistenceRestorePolicy<FormBody extends object> implements 
       }
     }
 
-    if (!isPersistedFormLike<FormBody>(persisted)) {
+    if (!isPersistedFormLike(persisted, defaults)) {
       return {
         action: 'discard',
         reason: 'invalid_persisted_state'

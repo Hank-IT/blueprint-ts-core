@@ -37,7 +37,9 @@ Validation modes are bit flags. You can use the presets below or combine flags w
 **Custom Combination**
 
 ```ts
-options: { mode: ValidationMode.ON_TOUCH | ValidationMode.ON_SUBMIT }
+options: {
+  mode: ValidationMode.ON_TOUCH | ValidationMode.ON_SUBMIT
+}
 ```
 
 **Internal vs External**
@@ -63,7 +65,7 @@ Some modes (notably `PASSIVE` / `ON_SUBMIT`) only validate when you trigger vali
 ### How `validate(isSubmitting)` Behaves
 
 - `validate(true)` enables `ON_SUBMIT` rules. Fields with `PASSIVE` mode will validate only here.
-- `validate(false)` still validates fields that are currently dirty, touched, or set to `INSTANTLY`.
+- `validate(false)` validates fields that are currently dirty, touched, or set to `INSTANTLY`.
 - `ValidationMode.NEVER` prevents validation in all cases, even during submit.
 
 ## Validation Groups
@@ -161,7 +163,7 @@ export class PackageForm extends BaseForm<PackageFormBody, PackageFormBody> {
 
 ### Running Async Validation
 
-You can still call the async validation methods explicitly when you want to await the result:
+Call the async validation methods to await their results:
 
 ```ts
 await form.validateFieldAsync('name', { isSubmitting: true })
@@ -169,7 +171,7 @@ await form.validateGroupAsync('details', true)
 await form.validateAsync(true)
 ```
 
-The returned errors are merged into the normal form error bag, so field access stays the same:
+The returned errors are merged into the form error bag:
 
 ```ts
 form.properties.name.errors
@@ -188,7 +190,7 @@ By default the rule validates only the current field. You can override this with
 
 ### Async Rules And Validation Modes
 
-Async rules now honor the same `ValidationMode` flags as sync rules.
+Async and synchronous rules use the same `ValidationMode` flags.
 
 That means a field with async rules can be triggered automatically by:
 
@@ -329,10 +331,7 @@ export class PinUpdateForm extends BaseForm<PinUpdateFormBody, PinUpdateFormBody
   protected override defineRules(): ValidationRules<PinUpdateFormBody> {
     return {
       current_pin: {
-        rules: [
-          new RequiredRule('This field is required.'),
-          new MinRule(4, 'This field must be at least 4 characters long.')
-        ]
+        rules: [new RequiredRule('This field is required.'), new MinRule(4, 'This field must be at least 4 characters long.')]
       },
       new_pin: {
         rules: [
@@ -348,3 +347,9 @@ export class PinUpdateForm extends BaseForm<PinUpdateFormBody, PinUpdateFormBody
   }
 }
 ```
+
+## Request-backed validation
+
+Asynchronous rules receive `context.payload`, containing the transformed values from `buildPayload()`. Pass it with `request.setBody(context.payload)`. `PrecognitiveRule` configures this body automatically along with the validation headers.
+
+Validation reports errors without changing the form's saved baseline. See [Saving Form Values](./saving) for accepting values after a successful save.

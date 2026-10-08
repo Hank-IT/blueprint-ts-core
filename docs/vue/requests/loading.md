@@ -9,7 +9,7 @@ use Vue refs to track loading state.
 import { BaseRequest } from '@blueprint-ts/core/requests'
 import { VueRequestLoaderFactory } from '@blueprint-ts/core/vue/requests'
 
-BaseRequest.setRequestLoaderFactory(new VueRequestLoaderFactory())
+BaseRequest.getDefaultClient().setLoaderFactory(new VueRequestLoaderFactory())
 ```
 
 ## Reading Loading State

@@ -403,8 +403,8 @@ function createEmptyResponseHandler(statusCode: number): ResponseHandlerContract
 
 describe('BaseForm behavior', () => {
   beforeEach(() => {
-    BaseRequest.setDefaultBaseUrl('https://example.com')
-    BaseRequest.setRequestDriver({
+    BaseRequest.getDefaultClient().setBaseUrl('https://example.com')
+    BaseRequest.getDefaultClient().setDriver({
       send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
     })
     window.sessionStorage.clear()
@@ -735,7 +735,7 @@ describe('BaseForm behavior', () => {
     )
   })
 
-  it('allows forms to override the persistence restore policy', () => {
+  it('lets a custom persistence policy choose a different valid baseline', () => {
     const initialForm = new LenientPersistentNestedBehaviorForm()
     initialForm.fillState({
       payload: new PropertyAwareObject({
@@ -767,7 +767,7 @@ describe('BaseForm behavior', () => {
         .mockResolvedValueOnce(createEmptyResponseHandler(204))
     }
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const form = new AsyncBehaviorForm()
     form.fillErrors({
@@ -810,7 +810,7 @@ describe('BaseForm behavior', () => {
         )
     }
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const form = new AsyncBehaviorForm()
 
@@ -834,7 +834,7 @@ describe('BaseForm behavior', () => {
       send: vi.fn().mockResolvedValue(createJsonResponseHandler(422, { errors: { name: ['Remote name error'] } }))
     }
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const form = new AsyncBehaviorForm()
     form.fillErrors({
@@ -860,7 +860,7 @@ describe('BaseForm behavior', () => {
         send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
       }
 
-      BaseRequest.setRequestDriver(driver)
+      BaseRequest.getDefaultClient().setDriver(driver)
 
       const form = new InstantAsyncBehaviorForm()
       form.properties.name.model.value = 'Ada'
@@ -882,7 +882,7 @@ describe('BaseForm behavior', () => {
       send: vi.fn().mockResolvedValue(createEmptyResponseHandler(204))
     }
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const form = new TouchAsyncBehaviorForm()
     form.touch('name')

@@ -3,14 +3,12 @@ import { type BaseViewDriverContract } from './contracts/BaseViewDriverContract'
 import { type PaginatorLoadDataOptions } from './contracts/PaginatorLoadDataOptions'
 
 export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseViewDriverContract<ResourceInterface[]>> {
-  protected initialized: boolean = false
-
   protected abstract viewDriver: ViewDriver
 
   public constructor(protected dataDriver: unknown) {}
 
   public isInitialized(): boolean {
-    return this.initialized
+    return this.viewDriver.isInitialized()
   }
 
   public flush(): void {
@@ -85,7 +83,7 @@ export abstract class BasePaginator<ResourceInterface, ViewDriver extends BaseVi
 
     this.viewDriver.setData(dto.getData())
     this.viewDriver.setTotal(dto.getTotal())
-    this.initialized = true
+    this.viewDriver.setInitialized(true)
   }
 
   protected handleStaleResponse(): PaginationDataDto<ResourceInterface[]> {

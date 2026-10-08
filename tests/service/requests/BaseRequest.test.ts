@@ -63,14 +63,12 @@ const createResponseHandler = (): ResponseHandlerContract => ({
   getRawResponse: () => new Response('ok'),
   json: async () => ({ ok: true }),
   text: async () => 'ok',
-  blob: async () => new Blob(),
+  blob: async () => new Blob()
 })
 
 describe('BaseRequest', () => {
   beforeEach(() => {
-    BaseRequest.setDefaultBaseUrl('https://example.com')
-    BaseRequest.setRequestLoaderFactory(undefined as unknown as RequestLoaderFactoryContract<boolean>)
-    BaseRequest.setRequestDriver(undefined as unknown as RequestDriverContract)
+    BaseRequest.getDefaultClient().setBaseUrl('https://example.com')
   })
 
   it('builds URLs with params and merges params deeply', () => {
@@ -87,15 +85,15 @@ describe('BaseRequest', () => {
 
   it('dispatches loading events and toggles loader', async () => {
     const loaderFactory: RequestLoaderFactoryContract<boolean> = {
-      make: () => new TestLoader(),
+      make: () => new TestLoader()
     }
 
-    BaseRequest.setRequestLoaderFactory(loaderFactory)
+    BaseRequest.getDefaultClient().setLoaderFactory(loaderFactory)
 
     const driver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const request = new TestRequest()
     const loadingEvents: boolean[] = []
@@ -121,9 +119,9 @@ describe('BaseRequest', () => {
   it('can send without resolving the typed response body', async () => {
     const responseHandler = createResponseHandler()
     const driver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(responseHandler),
+      send: vi.fn().mockResolvedValue(responseHandler)
     }
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const request = new TestRequest()
     request.setBody({ name: 'Ada' })
@@ -145,14 +143,14 @@ describe('BaseRequest', () => {
           loaded: 5,
           total: 10,
           lengthComputable: true,
-          progress: 0.5,
+          progress: 0.5
         })
 
         return createResponseHandler()
-      }),
+      })
     }
 
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const request = new TestRequest()
     const progressEvents: Array<number | undefined> = []
@@ -173,16 +171,17 @@ describe('BaseRequest', () => {
 
   it('marks stale responses when using LATEST concurrency mode', async () => {
     const driver: RequestDriverContract = {
-      send: vi.fn(),
+      send: vi.fn()
     }
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const resolvers: Array<(value: ResponseHandlerContract) => void> = []
 
-    ;(driver.send as ReturnType<typeof vi.fn>).mockImplementation(() =>
-      new Promise<ResponseHandlerContract>((resolve) => {
-        resolvers.push(resolve)
-      })
+    ;(driver.send as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<ResponseHandlerContract>((resolve) => {
+          resolvers.push(resolve)
+        })
     )
 
     const request = new TestRequest()
@@ -200,18 +199,19 @@ describe('BaseRequest', () => {
 
   it('aborts previous request when using REPLACE mode', async () => {
     const driver: RequestDriverContract = {
-      send: vi.fn(),
+      send: vi.fn()
     }
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const request = new TestRequest()
     request.setConcurrency({ mode: RequestConcurrencyMode.REPLACE, key: 'replace-test' })
 
     const resolvers: Array<(value: ResponseHandlerContract) => void> = []
-    ;(driver.send as ReturnType<typeof vi.fn>).mockImplementation(() =>
-      new Promise<ResponseHandlerContract>((resolve) => {
-        resolvers.push(resolve)
-      })
+    ;(driver.send as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<ResponseHandlerContract>((resolve) => {
+          resolvers.push(resolve)
+        })
     )
 
     const firstPromise = request.send()
@@ -232,9 +232,9 @@ describe('BaseRequest', () => {
     const responseException = new ResponseException(responseHandler)
 
     const driver: RequestDriverContract = {
-      send: vi.fn().mockRejectedValue(responseException),
+      send: vi.fn().mockRejectedValue(responseException)
     }
-    BaseRequest.setRequestDriver(driver)
+    BaseRequest.getDefaultClient().setDriver(driver)
 
     const handleSpy = vi.spyOn(ErrorHandler.prototype, 'handle').mockResolvedValue(undefined as never)
 
@@ -246,13 +246,13 @@ describe('BaseRequest', () => {
 
   it('uses a request-defined driver when provided', async () => {
     const globalDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
     const requestDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
 
-    BaseRequest.setRequestDriver(globalDriver)
+    BaseRequest.getDefaultClient().setDriver(globalDriver)
 
     class DriverSpecificRequest extends TestRequest {
       protected override getRequestDriver(): RequestDriverContract {
@@ -270,13 +270,13 @@ describe('BaseRequest', () => {
 
   it('uses an instance-specific driver without changing the global driver', async () => {
     const globalDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
     const instanceDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
 
-    BaseRequest.setRequestDriver(globalDriver)
+    BaseRequest.getDefaultClient().setDriver(globalDriver)
 
     const request = new TestRequest()
     request.setRequestDriver(instanceDriver)
@@ -289,16 +289,16 @@ describe('BaseRequest', () => {
 
   it('prefers an instance-specific driver over a request-defined driver', async () => {
     const globalDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
     const requestDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
     const instanceDriver: RequestDriverContract = {
-      send: vi.fn().mockResolvedValue(createResponseHandler()),
+      send: vi.fn().mockResolvedValue(createResponseHandler())
     }
 
-    BaseRequest.setRequestDriver(globalDriver)
+    BaseRequest.getDefaultClient().setDriver(globalDriver)
 
     class DriverSpecificRequest extends TestRequest {
       protected override getRequestDriver(): RequestDriverContract {

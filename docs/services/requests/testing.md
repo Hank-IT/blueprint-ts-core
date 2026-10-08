@@ -1,280 +1,46 @@
-# Testing
+# Testing Requests
 
-`MockRequestDriver` lets you test request classes without performing real HTTP calls. It supports strict ordered
-matching by default, optional unordered matching, predicate-based request matchers, capture-first expectations,
-response builders, and global setup helpers.
+Keep request classes, serialization, error normalization, and production client subscriptions active. Replace the transport with `MockRequestDriver` using a fresh scope per test.
 
-## Choosing An Install Style
+<<< ../../examples/v6.ts#testing
 
-There are two setup styles:
+In a test suite, create the scope in `beforeEach` and always call `scope.dispose()` in `afterEach`. Pass the application's configured client factory to `createMockRequestScope({ client: createAppClient() })` so the same authentication and other shared listeners execute. The mock overrides class-selected transports too; an explicit instance `setRequestDriver()` is reserved for tests exercising a real transport boundary.
 
-- global test setup with `installMockRequestDriver(...)`
-- per-request-instance setup with `request.setRequestDriver(...)`
+## Strict expectations
 
-Use the global helper when most requests in the test should go through the mock driver. Use the instance-level setter
-when only one request object should be mocked and the rest of the application should keep using the normal global
-driver. The global helper is recommended for most tests.
+`expect()` preserves ordered exact matching. `expectAny(criteria)` selects a matching pending expectation without requiring call order. Use `.withHeaders(predicate)` and `.withBody(expectJsonBody(expected))` to assert the actual serialized request. `expectJsonBody(expected, { partial: true })` supports deliberate partial matching. Expectations are consumed once.
 
-## Basic Usage
+`allow(criteria, responseOrResolver, { maxCalls })` provides an explicitly bounded repeated response. Do not use unbounded fallback responses for unexpected traffic. `deferredResponse()` provides a controllable response for loading, cancellation, and overlapping requests:
 
-```typescript
-import {
-    BaseRequest,
-    MockRequestDriver,
-    RequestMethodEnum,
-    jsonResponse
-} from '@blueprint-ts/core/requests'
-
-const driver = new MockRequestDriver()
-    .expect({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/api/v1/users',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: {
-            name: 'Ada'
-        },
-        response: jsonResponse(201, {
-            id: 1,
-            name: 'Ada'
-        })
-    })
-
-const request = new CreateUserRequest()
-    .setRequestDriver(driver)
-    .setBody({ name: 'Ada' })
-
-const response = await request.send()
-
-expect(response.getBody()).toEqual({
-    id: 1,
-    name: 'Ada'
-})
-
-driver.assertExpectationsMet()
+```ts
+const pending = deferredResponse()
+scope.driver.expectAny({ method: RequestMethodEnum.PATCH, url }).respond(pending.respond)
+const saving = request.send()
+pending.resolve(jsonResponse(200, saved))
+await saving
 ```
 
-With this default setup, each request must match the next queued expectation exactly.
+Disposal verifies unconsumed expectations and retained matching failures. Catching a rejection in application code does not hide an unexpected request. `reset()` and `resetMockRequestDriver()` verify first; a reset cannot erase a mismatch. History remains available for diagnostics.
 
-Use the same URL that `request.buildUrl()` would produce. If query parameter ordering is incidental in the test, keep
-the base URL in `url` and assert query semantics separately with the `query` field or `matchQuery(...)`.
+## Responses and request history
 
-## Ordered And Unordered Matching
+Response builders describe transport responses, including unsuccessful HTTP statuses:
 
-Ordered matching is the default:
+| Helper                                 | Use                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------- |
+| `jsonResponse(status, body, headers?)` | JSON successes, conflicts, and other API responses.                  |
+| `validationError(errors, message?)`    | An HTTP 422 response that passes through normal error normalization. |
+| `emptyResponse(status?, headers?)`     | A response without a body, defaulting to HTTP 204.                   |
+| `deferredResponse()`                   | Resolve or reject a pending transport response explicitly.           |
 
-```typescript
-const driver = new MockRequestDriver()
-```
+Inspect `scope.driver.getHistory()` to assert the actual serialized traffic. Each entry includes method, absolute URL, resolved headers, normalized body, and driver configuration. Use `getMockRequestJsonBody(entry)`, `getMockRequestTextBody(entry)`, or `getMockRequestQuery(entry)` to decode the representation. Multipart history contains individual text and file entries; binary bodies preserve byte content. History also retains attempted requests that failed matching.
 
-If request order should not matter, opt into unordered matching:
+Matchers can restrict method, URL, query parameters, headers, and body. Header and body objects match exactly; use predicates or `expectJsonBody(value, { partial: true })` when the test intentionally checks a subset. A response resolver receives the matched request, allowing a test to compute its response from the actual request. Required expectations take precedence over `allow()` rules.
 
-```typescript
-const driver = new MockRequestDriver(undefined, [], {
-    matchMode: 'unordered'
-})
-```
+## Testing application flows
 
-In unordered mode, the driver checks all pending expectations and consumes the first one that matches.
+For a form backed by an API, provide the read response, load it through the real request, edit the rendered controls, and assert the serialized save body and headers. Return the saved values explicitly and verify the displayed values and dirty state. A second save can verify that the caller uses the updated state.
 
-This is useful when:
+Test failures through response builders so error normalization and the application's error handling execute. Use pending responses to check loading indicators and duplicate-action guards.
 
-- background requests can arrive in either order
-- preload requests make strict ordering brittle
-- a test cares about which requests happened, but not their exact sequence
-
-## Predicate Matchers
-
-Exact matching remains the default. For looser assertions, use predicate helpers:
-
-```typescript
-import {
-    MockRequestDriver,
-    RequestMethodEnum,
-    expectJsonBody,
-    jsonResponse,
-    matchHeaders,
-    matchQuery
-} from '@blueprint-ts/core/requests'
-
-const driver = new MockRequestDriver()
-
-driver
-    .expectAny({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/api/v1/jobs'
-    })
-    .withHeaders(matchHeaders({
-        Accept: 'application/json'
-    }))
-    .withQuery(matchQuery({
-        draft: '1'
-    }))
-    .withBody(expectJsonBody({
-        job: {
-            name: 'Build'
-        }
-    }, { partial: true }))
-    .respond(jsonResponse(200, { ok: true }))
-```
-
-Available helpers:
-
-- `matchHeaders(...)` checks that selected resolved headers are present
-- `matchQuery(...)` checks selected query params
-- `expectJsonBody(...)` matches parsed JSON request bodies
-
-When you use a separate `query` matcher, the URL expectation should usually be the request URL without its query string.
-That lets the mock driver compare the path exactly and the query parameters structurally.
-
-Use `{ partial: true }` with `expectJsonBody(...)` when only part of the JSON payload matters.
-
-## Capture Then Assert
-
-Sometimes you want to allow a request and inspect it afterward instead of fully specifying the body up front:
-
-```typescript
-import {
-    MockRequestDriver,
-    RequestMethodEnum,
-    emptyResponse,
-    getMockRequestJsonBody
-} from '@blueprint-ts/core/requests'
-
-const driver = new MockRequestDriver()
-
-driver
-    .expectAny({
-        method: RequestMethodEnum.POST,
-        url: 'https://example.com/api/v1/editor/save'
-    })
-    .respond(emptyResponse())
-
-await saveRequest.send({ resolveBody: false })
-
-const history = driver.getHistory()
-const payload = getMockRequestJsonBody(history[0])
-
-expect(payload).toEqual({
-    content: 'Updated document'
-})
-```
-
-This pattern is useful when the exact payload is easier to assert after the action that triggered the request.
-
-## Response Builders
-
-Blueprint includes helpers for common mock responses:
-
-```typescript
-import {
-    emptyResponse,
-    jsonResponse,
-    validationError
-} from '@blueprint-ts/core/requests'
-
-jsonResponse(200, { ok: true })
-emptyResponse() // 204 by default
-validationError({
-    name: ['The name field is required.']
-})
-```
-
-`validationError(...)` returns a `422` JSON response, so `BaseRequest.send()` still routes it through the normal
-request error handling flow.
-
-## Install And Reset Helpers
-
-For shared test setup, install a global mock driver once:
-
-```typescript
-import {
-    installMockRequestDriver,
-    resetMockRequestDriver
-} from '@blueprint-ts/core/requests'
-
-beforeEach(() => {
-    resetMockRequestDriver()
-})
-
-const driver = installMockRequestDriver()
-```
-
-If you need unordered mode from the start:
-
-```typescript
-const driver = installMockRequestDriver({
-    matchMode: 'unordered'
-})
-```
-
-`resetMockRequestDriver()` clears expectations and history on the installed driver.
-
-If you only want to mock one request instance, prefer the instance-level setter instead of changing the global driver:
-
-```typescript
-const driver = new MockRequestDriver()
-
-const request = new CreateUserRequest()
-    .setRequestDriver(driver)
-```
-
-This is a good choice when one request instance should be mocked and the global request bootstrap should remain
-unchanged.
-
-## Inspecting History
-
-`getHistory()` still returns normalized request snapshots. Helper functions are available for common follow-up
-assertions:
-
-```typescript
-import {
-    getMockRequestJsonBody,
-    getMockRequestQuery,
-    getMockRequestTextBody
-} from '@blueprint-ts/core/requests'
-
-const entry = driver.getHistory()[0]
-
-const json = getMockRequestJsonBody(entry)
-const query = getMockRequestQuery(entry)
-const text = getMockRequestTextBody(entry)
-```
-
-The normalized history supports:
-
-- JSON and plain text bodies
-- `FormData`
-- `Blob`
-- typed arrays and other `BufferSource` payloads
-
-You can still assert against the raw normalized body shape when needed, but the helper functions are usually the more
-ergonomic choice for JSON/text requests.
-
-## Failure Output
-
-When a request does not match, the driver throws `MockRequestAssertionError` with:
-
-- the mismatch field
-- the expected request summary
-- the actual request summary
-- expected and actual values for the mismatched field
-- JSON diff paths when the body mismatch is JSON
-
-This keeps debugging practical even when tests use loose matchers or unordered mode.
-
-## Finishing A Test
-
-Use `assertExpectationsMet()` at the end of the test to ensure all expectations were consumed:
-
-```typescript
-driver.assertExpectationsMet()
-```
-
-If you want to clear both queue and history manually:
-
-```typescript
-driver.reset()
-```
+Mock the transport rather than replacing request methods or form payload construction. For Fetch/XHR transport tests, replace the browser API and retain the driver and request pipeline. Cover the JSON, binary, or multipart bodies used by the application.

@@ -7,6 +7,15 @@ import type { ViewDriverContract } from '../../../src/pagination/contracts/ViewD
 import type { ViewDriverFactoryContract } from '../../../src/pagination/contracts/ViewDriverFactoryContract'
 
 class StubViewDriver implements ViewDriverContract<number[]> {
+  private initialized = false
+
+  isInitialized(): boolean {
+    return this.initialized
+  }
+  setInitialized(value: boolean): void {
+    this.initialized = value
+  }
+
   private data: number[] = []
   private total = 0
   private currentPage: number
@@ -67,11 +76,11 @@ class StubViewDriverFactory implements ViewDriverFactoryContract {
 describe('PageAwarePaginator', () => {
   it('loads data and updates view driver', async () => {
     const dataDriver: PaginationDataDriverContract<number[]> = {
-      get: async () => new PaginationDataDto([1, 2], 2),
+      get: async () => new PaginationDataDto([1, 2], 2)
     }
 
     const paginator = new PageAwarePaginator<number[]>(dataDriver, 1, 2, {
-      viewDriverFactory: new StubViewDriverFactory(),
+      viewDriverFactory: new StubViewDriverFactory()
     })
 
     const dto = await paginator.load(2)
@@ -84,11 +93,11 @@ describe('PageAwarePaginator', () => {
 
   it('computes item range and pages', () => {
     const dataDriver: PaginationDataDriverContract<number[]> = {
-      get: async () => new PaginationDataDto([1], 10),
+      get: async () => new PaginationDataDto([1], 10)
     }
 
     const paginator = new PageAwarePaginator<number[]>(dataDriver, 2, 5, {
-      viewDriverFactory: new StubViewDriverFactory(),
+      viewDriverFactory: new StubViewDriverFactory()
     })
 
     expect(paginator.getFromItemNumber()).toBe(6)
@@ -98,11 +107,11 @@ describe('PageAwarePaginator', () => {
 
   it('resets page number when page size exceeds total', () => {
     const dataDriver: PaginationDataDriverContract<number[]> = {
-      get: async () => new PaginationDataDto([1, 2], 3),
+      get: async () => new PaginationDataDto([1, 2], 3)
     }
 
     const paginator = new PageAwarePaginator<number[]>(dataDriver, 2, 2, {
-      viewDriverFactory: new StubViewDriverFactory(),
+      viewDriverFactory: new StubViewDriverFactory()
     })
 
     ;(paginator as any).viewDriver.setTotal(3)
@@ -115,11 +124,11 @@ describe('PageAwarePaginator', () => {
     const dataDriver: PaginationDataDriverContract<number[]> = {
       get: async () => {
         throw new StaleResponseException()
-      },
+      }
     }
 
     const paginator = new PageAwarePaginator<number[]>(dataDriver, 1, 2, {
-      viewDriverFactory: new StubViewDriverFactory(),
+      viewDriverFactory: new StubViewDriverFactory()
     })
 
     ;(paginator as any).viewDriver.setData([9])

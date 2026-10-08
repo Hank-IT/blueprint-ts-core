@@ -90,6 +90,7 @@ export default defineConfig({
               { text: 'State And Properties', link: '/vue/forms/state-and-properties' },
               { text: 'Validation', link: '/vue/forms/validation' },
               { text: 'Building Payloads', link: '/vue/forms/payloads' },
+              { text: 'Saving Form Values', link: '/vue/forms/saving' },
               { text: 'Errors', link: '/vue/forms/errors' },
               { text: 'Persistence', link: '/vue/forms/persistence' },
               { text: 'Arrays & Objects', link: '/vue/forms/arrays' },
@@ -98,9 +99,7 @@ export default defineConfig({
           },
           {
             text: 'Requests',
-            items: [
-              { text: 'Loading', link: '/vue/requests/loading' }
-            ]
+            items: [{ text: 'Loading', link: '/vue/requests/loading' }]
           },
           {
             text: 'Router',
@@ -111,6 +110,7 @@ export default defineConfig({
       {
         text: 'Upgrading',
         items: [
+          { text: 'v5 to v6', link: '/upgrading/v5-to-v6' },
           { text: 'v4 to v5', link: '/upgrading/v4-to-v5' },
           { text: 'v3 to v4', link: '/upgrading/v3-to-v4' },
           { text: 'v2 to v3', link: '/upgrading/v2-to-v3' },

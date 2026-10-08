@@ -134,3 +134,20 @@ export type {
   MockResponseDefinition,
   InstallMockRequestDriverOptions
 }
+
+export { RequestContext, createRequestContextKey } from './types/RequestContext'
+export type { RequestContextKey, ReadonlyContext } from './types/RequestContext'
+export type {
+  RequestEventArguments,
+  RequestEventHandler,
+  RequestListenerErrorHandler,
+  RequestSnapshot,
+  RequestPreparation
+} from './types/RequestLifecycle'
+export type { SendRequestOptions } from './contracts/BaseRequestContract'
+
+export { deferredResponse, createMockRequestScope } from './drivers/mock/MockRequestTestHelpers'
+export type { MockResponseResolver } from './drivers/mock/MockRequestDriver'
+
+export { RequestClient, createRequestScope } from './RequestClient'
+export type { RequestClientOptions } from './RequestClient'

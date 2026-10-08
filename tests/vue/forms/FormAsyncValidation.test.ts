@@ -67,6 +67,43 @@ describe('form async validation through the request driver', () => {
     driver.assertExpectationsMet()
   })
 
+  it('uses subclass validation and payload overrides for group and field requests', async () => {
+    type Context = NonNullable<Parameters<Editor['validateFieldAsync']>[1]>
+    const validatedFields: Array<keyof Values> = []
+    class CustomizedEditor extends Editor {
+      protected override defineValidationGroups() {
+        return { details: ['name'] }
+      }
+
+      protected override validateField(field: keyof Values, context: Context = {}): void {
+        validatedFields.push(field)
+        super.validateField(field, context)
+      }
+
+      public override buildPayload(): Values {
+        const values = super.buildPayload()
+        return { ...values, name: `user:${values.name}` }
+      }
+    }
+
+    const driver = installMockRequestDriver()
+    const editor = new CustomizedEditor()
+    editor.properties.name.model.value = 'duplicate'
+    validatedFields.length = 0
+    driver.expect({ ...criteria, body: { name: 'user:duplicate', email: '' }, response: validationError({ name: ['Already taken'] }) })
+    await expect(editor.validateGroupAsync('details', true)).resolves.toBe(false)
+    expect(validatedFields).toEqual(['name'])
+    expect(editor.getErrors()).toEqual({ name: ['Already taken'] })
+
+    editor.properties.name.model.value = 'available'
+    validatedFields.length = 0
+    driver.expect({ ...criteria, body: { name: 'user:available', email: '' }, response: emptyResponse() })
+    await expect(editor.validateFieldAsync('name', { isSubmitting: true })).resolves.toBe(true)
+    expect(validatedFields).toEqual(['name'])
+    expect(editor.getErrors()).toEqual({})
+    driver.assertExpectationsMet()
+  })
+
   it.each([true, false])('keeps the latest validation result when an older response arrives last (latest valid: %s)', async (latestValid) => {
     const driver = installMockRequestDriver()
     const first = deferredResponse()

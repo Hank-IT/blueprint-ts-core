@@ -1,3 +1,11 @@
+## 6.0.0 - 2026-10-08
+
+# [6.0.0](/compare/5.0.0...6.0.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies to patched versions c69c491
 ## 5.0.0 - 2026-06-23
 
 # [5.0.0](/compare/4.1.0...5.0.0) (2026-06-23)
